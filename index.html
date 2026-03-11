@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantone 805C: Hot Coral Across Color Spaces</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #141414;
+            color: #d0d0d0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .container { max-width: 980px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+        /* Hero banner */
+        .hero-banner {
+            padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem;
+            display: flex; align-items: flex-start; gap: 1.25rem;
+        }
+        .hero-banner.supports-yes { background: #0a2a12; border: 2px solid #1a6633; }
+        .hero-banner.supports-no { background: #2a0f0a; border: 2px solid #662211; }
+        .hero-indicator {
+            flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; font-weight: 800; margin-top: 0.1rem;
+        }
+        .supports-yes .hero-indicator { background: #1a6633; color: #44ff88; }
+        .supports-no .hero-indicator { background: #662211; color: #ff6644; }
+
+        .hero-banner.supports-likely { background: #1a2a0a; border: 2px solid #446622; }
+        .supports-likely .hero-indicator { background: #446622; color: #bbee44; }
+        .supports-likely .hero-text h2 { color: #bbee44; }
+        .hero-text h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.3rem; }
+        .supports-yes .hero-text h2 { color: #44ff88; }
+        .supports-no .hero-text h2 { color: #ff6644; }
+        .hero-text p { font-size: 0.88rem; color: #aaa; line-height: 1.55; }
+        .hero-text code {
+            background: rgba(255,255,255,0.08); padding: 0.1rem 0.35rem;
+            border-radius: 3px; font-size: 0.82rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        /* Capabilities */
+        .capabilities {
+            background: #1e1e1e; border-radius: 12px;
+            padding: 1.15rem 1.25rem; margin-bottom: 2rem;
+        }
+        .capabilities summary {
+            font-size: 0.9rem; font-weight: 600; color: #fff; cursor: pointer;
+            list-style: none; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .capabilities summary::-webkit-details-marker { display: none; }
+        .capabilities summary::before {
+            content: '\25B6'; font-size: 0.6rem; color: #666; transition: transform 0.15s;
+        }
+        .capabilities[open] summary::before { transform: rotate(90deg); }
+        .cap-grid {
+            display: grid; grid-template-columns: 180px 1fr;
+            gap: 0.35rem 1rem; margin-top: 0.85rem; font-size: 0.82rem;
+        }
+        .cap-label { color: #777; }
+        .cap-value {
+            color: #ccc; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.78rem;
+        }
+        .cap-value .yes { color: #66ee99; }
+        .cap-value .no { color: #ee8866; }
+        .cap-note {
+            grid-column: 1 / -1; color: #555; font-size: 0.75rem;
+            margin-top: 0.5rem; font-style: italic;
+        }
+
+        /* Background toggle */
+        .bg-toggle { display: flex; gap: 0.4rem; margin-bottom: 2rem; }
+        .bg-toggle .btn { font-size: 0.78rem; padding: 0.3rem 0.7rem; }
+
+        /* Swatches */
+        .swatches {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem; margin-bottom: 2rem;
+        }
+        .swatch { border-radius: 12px; overflow: hidden; background: #1e1e1e; }
+        .swatch-color {
+            height: 220px; position: relative; cursor: pointer;
+        }
+        .swatch-color .swatch-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
+        .swatch-color .gamut-tag {
+            position: absolute; top: 10px; right: 10px; z-index: 1;
+            font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem;
+            border-radius: 4px; background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
+        .gamut-tag.in-gamut { color: #66ee99; }
+        .gamut-tag.out-of-gamut { color: #ee8866; }
+        .gamut-tag.clamped { color: #ffcc44; }
+        .swatch-info { padding: 0.9rem 1rem; }
+        .swatch-label { font-weight: 600; font-size: 1rem; color: #fff; margin-bottom: 0.15rem; }
+        .swatch-value {
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem;
+            color: #666; word-break: break-all; cursor: pointer;
+            padding: 0.2rem 0; transition: color 0.15s;
+        }
+        .swatch-value:hover { color: #999; }
+        .swatch-value.copied { color: #66ee99; }
+        .swatch-note { font-size: 0.78rem; color: #555; margin-top: 0.35rem; }
+
+        /* Controls */
+        .controls { background: #1e1e1e; border-radius: 12px; padding: 1.25rem; margin-bottom: 2rem; }
+        .controls h2 { font-size: 0.95rem; font-weight: 600; color: #fff; margin-bottom: 1rem; }
+        .control-group { display: flex; flex-direction: column; gap: 0.65rem; }
+        .control-row { display: flex; align-items: center; gap: 0.85rem; }
+        .control-row label { width: 130px; font-size: 0.85rem; flex-shrink: 0; color: #999; }
+        .control-row input[type="range"] {
+            flex: 1; height: 6px; -webkit-appearance: none; appearance: none;
+            background: #333; border-radius: 3px; outline: none;
+        }
+        .control-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+            border-radius: 50%; background: #FF4B36; cursor: pointer; border: 2px solid #fff;
+        }
+        .control-row input[type="range"]::-moz-range-thumb {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #FF4B36; cursor: pointer; border: 2px solid #fff;
+        }
+        .control-row .val {
+            width: 55px; text-align: right;
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; color: #666;
+        }
+        .control-row .val-input {
+            width: 70px; text-align: right; padding: 0.25rem 0.4rem;
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem;
+            color: #ccc; background: #2a2a2a; border: 1px solid #444;
+            border-radius: 5px; outline: none;
+        }
+        .control-row .val-input:focus { border-color: #FF4B36; color: #fff; }
+
+        /* Live info panel */
+        .live-info {
+            background: #1e1e1e; border-radius: 12px; padding: 1.25rem;
+            margin-bottom: 2rem; font-size: 0.82rem; line-height: 1.7;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        .live-info .info-row { display: flex; gap: 0.5rem; align-items: baseline; }
+        .live-info .info-label { color: #666; min-width: 120px; flex-shrink: 0; }
+        .live-info .info-value { color: #ccc; }
+        .live-info .srgb-c { color: #FF4B36; }
+        .live-info .p3-c { color: #ff8844; }
+        .live-info .rec-c { color: #55aaff; }
+
+        /* Preset section */
+        .preset-section {
+            margin-bottom: 2rem;
+        }
+        .preset-section h2 {
+            font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 1rem;
+            letter-spacing: -0.01em;
+        }
+
+        /* Chroma slider with markers */
+        .chroma-slider-wrap {
+            flex: 1; position: relative;
+        }
+        .chroma-slider-wrap input[type="range"] { width: 100%; }
+        .chroma-markers {
+            position: absolute;
+            top: 0; left: 9px; right: 9px;
+            height: 100%; pointer-events: none;
+        }
+        .chroma-marker {
+            position: absolute; top: -4px;
+            width: 2px; height: calc(100% + 8px);
+            transform: translateX(-50%);
+            opacity: 0.85;
+        }
+        .chroma-marker-label {
+            position: absolute; bottom: -15px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.58rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            white-space: nowrap;
+        }
+        .chroma-marker.srgb { background: #FF4B36; }
+        .chroma-marker.srgb .chroma-marker-label { color: #FF4B36; }
+        .chroma-marker.p3 { background: #ff8844; }
+        .chroma-marker.p3 .chroma-marker-label { color: #ff8844; }
+        .chroma-marker.rec2020 { background: #55aaff; }
+        .chroma-marker.rec2020 .chroma-marker-label { color: #55aaff; }
+        .chroma-marker.display-est {
+            background: none;
+            border-left: 2px dotted #888;
+            width: 0;
+            opacity: 0.6;
+        }
+        .chroma-marker.display-est .chroma-marker-label {
+            color: #777; bottom: auto; top: -16px;
+            font-size: 0.52rem;
+        }
+
+        .btn-row { display: flex; gap: 0.5rem; margin-top: 0.85rem; }
+        .btn {
+            padding: 0.4rem 0.9rem; background: #2a2a2a; color: #aaa;
+            border: 1px solid #3a3a3a; border-radius: 6px; cursor: pointer;
+            font-size: 0.82rem; font-family: inherit; transition: all 0.15s;
+        }
+        .btn:hover { background: #333; color: #ddd; border-color: #555; }
+        .btn.active { background: #FF4B36; color: #fff; border-color: #FF4B36; }
+        .btn.active span { color: #fff !important; }
+
+        @media (max-width: 700px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            .swatches { grid-template-columns: 1fr; gap: 1rem; }
+            .swatch-color { height: 160px; }
+            .control-row label { width: 100px; font-size: 0.8rem; }
+            .hero-banner { flex-direction: column; gap: 0.75rem; }
+            .illuminant-grid { grid-template-columns: 1fr !important; }
+        }
+
+        body.light-bg { background: #f0f0f0; }
+        body.light-bg .swatch, body.light-bg .controls,
+        body.light-bg .capabilities,
+        body.light-bg .live-info {
+            background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        body.light-bg .control-row input[type="range"] { background: #ddd; }
+        body.light-bg .btn { background: #eee; border-color: #ddd; color: #666; }
+        body.light-bg .btn:hover { background: #e0e0e0; color: #333; }
+        body.light-bg .val-input { background: #f0f0f0; border-color: #ccc; color: #333; }
+
+        body.white-bg { background: #fff; }
+        body.white-bg .swatch, body.white-bg .controls,
+        body.white-bg .capabilities,
+        body.white-bg .live-info {
+            background: #f8f8f8; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        body.white-bg .control-row input[type="range"] { background: #ddd; }
+        body.white-bg .btn { background: #eee; border-color: #ddd; color: #666; }
+        body.white-bg .btn:hover { background: #e0e0e0; color: #333; }
+        body.white-bg .val-input { background: #f0f0f0; border-color: #ccc; color: #333; }
+
+        /* Onboarding modal */
+        .onboarding-overlay {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .onboarding-overlay.hidden { display: none; }
+        .onboarding-modal {
+            background: #1e1e1e; border: 1px solid #333; border-radius: 16px;
+            max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto;
+            padding: 2rem; position: relative;
+        }
+        .onboarding-step { display: none; }
+        .onboarding-step.active { display: block; }
+        .onboarding-step h2 {
+            font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem;
+        }
+        .onboarding-step p, .onboarding-step div.ob-body {
+            font-size: 0.88rem; color: #aaa; line-height: 1.65; margin-bottom: 0.75rem;
+        }
+        .onboarding-step code {
+            font-size: 0.8rem; background: rgba(255,255,255,0.08);
+            padding: 0.1rem 0.4rem; border-radius: 3px;
+            font-family: 'SF Mono', 'Fira Code', monospace; color: #88ccff;
+        }
+        .ob-step-indicator {
+            font-size: 0.72rem; color: #555; margin-bottom: 1rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        .ob-nav {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #2a2a2a;
+        }
+        .ob-nav .btn { min-width: 80px; text-align: center; }
+        .ob-skip {
+            position: absolute; top: 1.25rem; right: 1.25rem;
+            background: none; border: none; color: #666; cursor: pointer;
+            font-size: 0.82rem; font-family: inherit; padding: 0.3rem 0.5rem;
+            border-radius: 4px; transition: color 0.15s;
+        }
+        .ob-skip:hover { color: #aaa; }
+        .ob-highlight {
+            background: rgba(255,75,54,0.1); border: 1px solid rgba(255,75,54,0.25);
+            border-radius: 8px; padding: 0.75rem 1rem; margin: 0.75rem 0;
+        }
+        .ob-marker-demo {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin: 0.4rem 0; font-size: 0.82rem;
+        }
+        .ob-marker-line {
+            width: 2px; height: 18px; flex-shrink: 0;
+        }
+        .ob-marker-line.solid { background: currentColor; }
+        .ob-marker-line.dotted { border-left: 2px dotted currentColor; width: 0; }
+    </style>
+</head>
+<body>
+    <!-- Onboarding modal -->
+    <div class="onboarding-overlay" id="onboarding">
+        <div class="onboarding-modal">
+            <button class="ob-skip" onclick="closeOnboarding()">Skip intro</button>
+
+            <div class="onboarding-step active" data-step="1">
+                <div class="ob-step-indicator">1 / 6</div>
+                <h2>Enable HDR Canvas</h2>
+                <p>This tool uses the <code>rec2100-pq</code> HDR canvas API to render colors beyond sRGB. It requires a Chrome flag to be enabled.</p>
+                <div class="ob-highlight">
+                    <p style="margin:0;">In Chrome, open <code>chrome://flags/#enable-experimental-web-platform-features</code>, set it to <strong style="color:#fff;">Enabled</strong>, then restart the browser.</p>
+                </div>
+                <p style="font-size:0.82rem; color:#666;">Without this flag, tiles fall back to CSS <code>oklch()</code> which cannot exceed SDR brightness.</p>
+                <div class="ob-nav">
+                    <span></span>
+                    <button class="btn" onclick="obNext()">Next</button>
+                </div>
+            </div>
+
+            <div class="onboarding-step" data-step="2">
+                <div class="ob-step-indicator">2 / 6</div>
+                <h2>Display Profile</h2>
+                <p>For accurate HDR color rendering, macOS should use a colorimetric reference profile instead of its default perceptual gamut mapping.</p>
+                <div class="ob-highlight">
+                    <p style="margin:0;">System Settings &rarr; Displays &rarr; choose <code>HDR Video (P3-ST 2084)</code> as the display preset.</p>
+                </div>
+                <p style="font-size:0.82rem; color:#666;">This tells macOS to hard-clip out-of-gamut colors instead of smoothly compressing them, giving you accurate rendering within your display's gamut.</p>
+                <div class="ob-nav">
+                    <button class="btn" onclick="obPrev()">Back</button>
+                    <button class="btn" onclick="obNext()">Next</button>
+                </div>
+            </div>
+
+            <div class="onboarding-step" data-step="3">
+                <div class="ob-step-indicator">3 / 6</div>
+                <h2>Presets</h2>
+                <p>The presets load CIE Lab measurements of Pantone colors into the OKLCH sliders. There are two illuminant groups:</p>
+                <div class="ob-body">
+                    <p><strong style="color:#888;">D50 (no UV)</strong> &mdash; Standard Pantone measurement light. Fluorescent pigments look like ordinary inks, so the Lab values understate their true vividness.</p>
+                    <p><strong style="color:#88aaff;">D65 (with UV)</strong> &mdash; Daylight including UV. Fluorescent pigments absorb UV and re-emit visible light, producing the neon glow. These independently measured values capture what your eyes actually see.</p>
+                </div>
+                <p style="font-size:0.82rem; color:#666;">Selecting a preset converts CIE Lab to OKLCH and sets all four sliders. You can fine-tune from there.</p>
+                <div class="ob-nav">
+                    <button class="btn" onclick="obPrev()">Back</button>
+                    <button class="btn" onclick="obNext()">Next</button>
+                </div>
+            </div>
+
+            <div class="onboarding-step" data-step="4">
+                <div class="ob-step-indicator">4 / 6</div>
+                <h2>Gamut Boundary Markers</h2>
+                <p>The chroma slider shows where each color space's gamut ends at the current lightness and hue. The slider scales to the CIE 1931 spectral locus &mdash; the absolute physical limit of visible color.</p>
+                <div style="margin:0.75rem 0;">
+                    <div class="ob-marker-demo"><div class="ob-marker-line solid" style="color:#FF4B36;"></div> <span><strong style="color:#FF4B36;">sRGB</strong> &mdash; standard web colors</span></div>
+                    <div class="ob-marker-demo"><div class="ob-marker-line solid" style="color:#ff8844;"></div> <span><strong style="color:#ff8844;">P3</strong> &mdash; wide-gamut displays (iPhone, Mac)</span></div>
+                    <div class="ob-marker-demo"><div class="ob-marker-line solid" style="color:#55aaff;"></div> <span><strong style="color:#55aaff;">Rec.2020</strong> &mdash; ultra-wide gamut (HDR video standard)</span></div>
+                </div>
+                <p>Each tile clamps chroma to its gamut boundary. Pushing chroma past sRGB only affects the P3 and Rec.2100 tiles.</p>
+                <div class="ob-nav">
+                    <button class="btn" onclick="obPrev()">Back</button>
+                    <button class="btn" onclick="obNext()">Next</button>
+                </div>
+            </div>
+
+            <div class="onboarding-step" data-step="5">
+                <div class="ob-step-indicator">5 / 6</div>
+                <h2>HDR Brightness</h2>
+                <p>The HDR brightness slider is <em>not</em> part of the color itself &mdash; it controls how bright the Rec.2100 tile is rendered, independently of its hue and saturation.</p>
+                <p>Most displays capable of P3 or wider gamut also support <strong style="color:#ccc;">per-area brightness control</strong> &mdash; this is what HDR actually is. Rather than a single fixed backlight level, HDR displays (MiniLED local dimming, OLED per-pixel) can push individual regions far beyond the standard SDR white point of 203 nits.</p>
+                <div class="ob-highlight">
+                    <p style="margin:0; font-size:0.85rem;">Presets default to <strong style="color:#fff;">2.0x</strong> (406 nits) to showcase what wide-gamut + HDR brightness can do together. Loading from a hex code defaults to <strong style="color:#fff;">1.0x</strong> (SDR) since hex is an sRGB value with no HDR intent.</p>
+                </div>
+                <p style="font-size:0.82rem; color:#666;">The combination of wider gamut (more saturated) and higher brightness is what makes HDR content look so vivid compared to SDR &mdash; Rec.2100 pairs the Rec.2020 color primaries with the PQ brightness curve, covering both dimensions.</p>
+                <div class="ob-nav">
+                    <button class="btn" onclick="obPrev()">Back</button>
+                    <button class="btn" onclick="obNext()">Next</button>
+                </div>
+            </div>
+
+            <div class="onboarding-step" data-step="6">
+                <div class="ob-step-indicator">6 / 6</div>
+                <h2>Display Technology Estimates</h2>
+                <p>Dotted markers show where real displays fall between P3 and Rec.2020, estimated from published primary measurements (rtings.com, HDTVTest). These shift with hue:</p>
+                <div style="margin:0.75rem 0;">
+                    <div class="ob-marker-demo"><div class="ob-marker-line dotted" style="color:#888;"></div> <span><strong style="color:#999;">MiniLED</strong> &mdash; MacBook Pro, KSF phosphor backlight. Close to P3 at most hues.</span></div>
+                    <div class="ob-marker-demo"><div class="ob-marker-line dotted" style="color:#888;"></div> <span><strong style="color:#999;">QD-OLED</strong> &mdash; Samsung/Alienware. Extends furthest in red/green (~632nm/530nm QDs), barely exceeds P3 in blue.</span></div>
+                </div>
+                <div class="ob-highlight" style="border-color:rgba(153,119,68,0.4); background:rgba(153,119,68,0.08);">
+                    <p style="margin:0; font-size:0.82rem;"><strong style="color:#997744;">Why do I see changes past my display's marker?</strong> macOS does not hard-clip out-of-gamut HDR colors. Its EDR pipeline applies perceptual gamut mapping, so you see the Rec.2100 tile keep changing past the dotted line &mdash; but those differences are <em style="color:#aaa;">inaccurate</em>. Colors within the marker are rendered accurately; colors beyond are the OS's best-effort approximation. Using the HDR Video reference profile (step 2) reduces this effect.</p>
+                </div>
+                <div class="ob-nav">
+                    <button class="btn" onclick="obPrev()">Back</button>
+                    <button class="btn active" onclick="closeOnboarding()">Get started</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="hero-banner" class="hero-banner supports-no">
+            <div class="hero-indicator" id="hero-icon">?</div>
+            <div class="hero-text">
+                <h2 id="hero-title">Detecting display...</h2>
+                <p id="hero-body"></p>
+            </div>
+        </div>
+
+        <div class="preset-section">
+        <h2>Presets</h2>
+        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem;">
+            <label style="font-size:0.85rem; color:#999; flex-shrink:0;">Start from hex</label>
+            <input type="text" id="hex-input" placeholder="#FF4B36" maxlength="7"
+                style="width:100px; padding:0.35rem 0.5rem; background:#2a2a2a; border:1px solid #444; border-radius:6px; color:#fff; font-family:'SF Mono','Fira Code',monospace; font-size:0.85rem;">
+            <button class="btn" onclick="loadFromHex()">Load</button>
+            <span id="hex-swatch" style="width:24px; height:24px; border-radius:4px; border:1px solid #444; flex-shrink:0;"></span>
+            <span id="hex-error" style="font-size:0.78rem; color:#ee8866;"></span>
+        </div>
+        <div class="illuminant-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+            <div style="background:#1e1e1e; border-radius:12px; padding:1.15rem;">
+                <div style="font-size:0.95rem; font-weight:600; color:#fff; margin-bottom:0.35rem;">D50 illuminant <span style="font-weight:400; color:#888;">(no UV)</span></div>
+                <div style="font-size:0.78rem; color:#666; margin-bottom:0.75rem; line-height:1.5;">Standard Pantone measurement light. Does not contain UV wavelengths, so fluorescent pigments look like ordinary inks. The measured Lab values understate the true vividness of neon colors.</div>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button class="btn preset-btn" id="preset-d50-805c" onclick="loadPreset(65.44, 54.01, 24.58, 'd50', this)">805C <span style="color:#FF4B36">Original Neon</span></button>
+                    <button class="btn preset-btn" id="preset-d50-2346c" onclick="loadPreset(61.0, 64.2, 26.1, 'd50', this)">2346 C <span style="color:#e04030">Non-Neon</span></button>
+                </div>
+            </div>
+            <div style="background:#1e1e1e; border-radius:12px; padding:1.15rem; border:1px solid #333;">
+                <div style="font-size:0.95rem; font-weight:600; color:#fff; margin-bottom:0.35rem;">D65 illuminant <span style="font-weight:400; color:#88aaff;">(with UV)</span></div>
+                <div style="font-size:0.78rem; color:#666; margin-bottom:0.75rem; line-height:1.5;">Daylight-equivalent light including UV. Fluorescent pigments absorb UV and re-emit visible light, producing the neon glow. These measurements capture what your eyes actually see under sunlight. D65 values are not provided by Pantone — independently measured by <a href="https://www.e-paint.co.uk/lab-hlc-rgb-lrv-values.asp?cRange=Pantone+C&cRef=805+C" target="_blank" rel="noopener" style="color:#88aaff;">e-paint.co.uk</a>.</div>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button class="btn preset-btn" id="preset-d65-805c" onclick="loadPreset(73.03, 69.14, 35.9, 'd65', this)">805C <span style="color:#FF4B36">Original Neon</span></button>
+                    <button class="btn preset-btn" id="preset-d65-2346c" onclick="loadPreset(64.06, 67.21, 31.67, 'd65', this)">2346 C <span style="color:#e04030">Non-Neon</span></button>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div class="bg-toggle">
+            <button class="btn active" onclick="setBg('dark')">Dark bg</button>
+            <button class="btn" onclick="setBg('light')">Light bg</button>
+            <button class="btn" onclick="setBg('white')">White bg</button>
+        </div>
+
+        <div class="swatches">
+            <div class="swatch">
+                <div class="swatch-color" id="swatch-srgb" onclick="copyCssValue('srgb')">
+                    <canvas class="swatch-canvas" id="canvas-srgb"></canvas>
+                    <span class="gamut-tag in-gamut" id="tag-srgb">sRGB</span>
+                </div>
+                <div class="swatch-info">
+                    <div class="swatch-label">sRGB</div>
+                    <div class="swatch-value" id="value-srgb" onclick="copyCssValue('srgb')" title="Click to copy"></div>
+                    <div class="swatch-note" id="note-srgb"></div>
+                </div>
+            </div>
+            <div class="swatch">
+                <div class="swatch-color" id="swatch-p3" onclick="copyCssValue('p3')">
+                    <canvas class="swatch-canvas" id="canvas-p3"></canvas>
+                    <span class="gamut-tag in-gamut" id="tag-p3">P3</span>
+                </div>
+                <div class="swatch-info">
+                    <div class="swatch-label">Display P3</div>
+                    <div class="swatch-value" id="value-p3" onclick="copyCssValue('p3')" title="Click to copy"></div>
+                    <div class="swatch-note" id="note-p3"></div>
+                </div>
+            </div>
+            <div class="swatch">
+                <div class="swatch-color" id="swatch-rec2020" onclick="copyCssValue('rec2020')">
+                    <canvas class="swatch-canvas" id="canvas-rec"></canvas>
+                    <span class="gamut-tag in-gamut" id="tag-rec2020">Rec.2100</span>
+                </div>
+                <div class="swatch-info">
+                    <div class="swatch-label">Rec. 2100</div>
+                    <div class="swatch-value" id="value-rec2020" onclick="copyCssValue('rec2020')" title="Click to copy"></div>
+                    <div class="swatch-note" id="note-rec2020"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h2>OKLCH sliders</h2>
+            <div style="font-size:0.75rem; color:#555; margin-bottom:0.85rem; line-height:1.5;">
+                OKLCH is a perceptually uniform color space. <strong style="color:#777;">L</strong> = perceived brightness (0 black, 1 white). <strong style="color:#777;">C</strong> = saturation intensity (0 grey, higher = more vivid). <strong style="color:#777;">H</strong> = hue angle in degrees (0&deg; pink, 30&deg; red, 90&deg; yellow, 140&deg; green, 265&deg; blue).
+            </div>
+            <div class="control-group">
+                <div class="control-row">
+                    <label for="adj-lightness">Lightness (L)</label>
+                    <input type="range" id="adj-lightness" min="0.05" max="0.95" value="0.717" step="0.001">
+                    <input type="text" class="val-input" id="adj-lightness-val" value="0.717">
+                </div>
+                <div class="control-row" style="margin-bottom:1rem">
+                    <label for="adj-chroma">Chroma (C)</label>
+                    <div class="chroma-slider-wrap">
+                        <input type="range" id="adj-chroma" min="0" max="0.45" value="0.169" step="0.001">
+                        <div class="chroma-markers" id="chroma-markers"></div>
+                    </div>
+                    <input type="text" class="val-input" id="adj-chroma-val" value="0.169">
+                </div>
+                <div class="control-row">
+                    <label for="adj-hue">Hue (H)</label>
+                    <input type="range" id="adj-hue" min="0" max="360" value="20.1" step="0.1">
+                    <input type="text" class="val-input" id="adj-hue-val" value="20.1">
+                </div>
+                <div class="control-row">
+                    <label for="adj-hdr">HDR brightness</label>
+                    <input type="range" id="adj-hdr" min="100" max="500" value="200" step="5">
+                    <input type="text" class="val-input" id="adj-hdr-val" value="2.0x">
+                </div>
+                <div style="font-size:0.75rem; color:#555; margin-top:0.15rem;">
+                    HDR brightness applies only to the Rec. 2100 tile. sRGB and P3 at SDR (203 nits).
+                    <a href="#" onclick="showOnboarding(); return false;" style="color:#666; margin-left:0.3rem;">Setup &amp; guide</a>
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn" onclick="resetSliders()">Reset</button>
+            </div>
+        </div>
+
+        <div class="live-info" id="live-info"></div>
+
+        <details class="capabilities">
+            <summary>Full display capabilities</summary>
+            <div class="cap-grid" id="cap-grid"></div>
+        </details>
+    </div>
+
+    <script>
+        // ========== Color science ==========
+
+        function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+        // CIE Lab (D50) → XYZ D50
+        function labToXyzD50(L, a, b) {
+            const fy = (L + 16) / 116;
+            const fx = fy + a / 500;
+            const fz = fy - b / 200;
+            const d = 6 / 29;
+            const inv = f => f > d ? f * f * f : 3 * d * d * (f - 4 / 29);
+            return [inv(fx) * 0.96422, inv(fy), inv(fz) * 0.82521];
+        }
+
+        // CIE Lab (D65) → XYZ D65
+        function labToXyzD65(L, a, b) {
+            const fy = (L + 16) / 116;
+            const fx = fy + a / 500;
+            const fz = fy - b / 200;
+            const d = 6 / 29;
+            const inv = f => f > d ? f * f * f : 3 * d * d * (f - 4 / 29);
+            return [inv(fx) * 0.95047, inv(fy), inv(fz) * 1.08883];
+        }
+
+        // XYZ D50 → XYZ D65 (Bradford)
+        function d50ToD65(x, y, z) {
+            return [
+                 0.9555766 * x - 0.0230393 * y + 0.0631636 * z,
+                -0.0282895 * x + 1.0099416 * y + 0.0210077 * z,
+                 0.0122982 * x - 0.0204830 * y + 1.3299098 * z
+            ];
+        }
+
+        // XYZ D65 → LMS (OKLab M1)
+        function xyzToLms(x, y, z) {
+            return [
+                0.8189330101 * x + 0.3618667424 * y - 0.1288597137 * z,
+                0.0329845436 * x + 0.9293118715 * y + 0.0361456387 * z,
+                0.0482003018 * x + 0.2643662691 * y + 0.6338517070 * z
+            ];
+        }
+
+        // LMS → XYZ D65 (M1 inverse)
+        function lmsToXyz(l, m, s) {
+            return [
+                 1.2270138511035211 * l - 0.5577999806518222 * m + 0.2812561489664678 * s,
+                -0.0405801784232806 * l + 1.1122568696168302 * m - 0.0716766786656012 * s,
+                -0.0763812845057069 * l - 0.4214819784180127 * m + 1.5861632204407947 * s
+            ];
+        }
+
+        // XYZ D65 → OKLab
+        function xyzToOklab(x, y, z) {
+            const [l, m, s] = xyzToLms(x, y, z);
+            const lc = Math.cbrt(l), mc = Math.cbrt(m), sc = Math.cbrt(s);
+            return [
+                0.2104542553 * lc + 0.7936177850 * mc - 0.0040720468 * sc,
+                1.9779984951 * lc - 2.4285922050 * mc + 0.4505937099 * sc,
+                0.0259040371 * lc + 0.7827717662 * mc - 0.8086757660 * sc
+            ];
+        }
+
+        // OKLab → OKLCH
+        function oklabToOklch(L, a, b) {
+            return {
+                l: L,
+                c: Math.sqrt(a * a + b * b),
+                h: ((Math.atan2(b, a) * 180 / Math.PI) + 360) % 360
+            };
+        }
+
+        // OKLCH → XYZ D65
+        function oklchToXyz(l, c, h) {
+            const hRad = h * Math.PI / 180;
+            const a = c * Math.cos(hRad), b = c * Math.sin(hRad);
+            const lc = l + 0.3963377774 * a + 0.2158037573 * b;
+            const mc = l - 0.1055613458 * a - 0.0638541728 * b;
+            const sc = l - 0.0894841775 * a - 1.2914855480 * b;
+            return lmsToXyz(lc * lc * lc, mc * mc * mc, sc * sc * sc);
+        }
+
+        // XYZ D65 → linear sRGB
+        function xyzToLinSrgb(x, y, z) {
+            return [
+                 3.2404541621 * x - 1.5371385940 * y - 0.4985314096 * z,
+                -0.9692660305 * x + 1.8760108454 * y + 0.0415560175 * z,
+                 0.0556434310 * x - 0.2039769606 * y + 1.0572251882 * z
+            ];
+        }
+
+        // XYZ D65 → linear Display P3
+        function xyzToLinP3(x, y, z) {
+            return [
+                 2.4934969119 * x - 0.9313836179 * y - 0.4027107845 * z,
+                -0.8294889696 * x + 1.7626640603 * y + 0.0236246858 * z,
+                 0.0358458302 * x - 0.0761723893 * y + 0.9568845240 * z
+            ];
+        }
+
+        // XYZ D65 → linear Rec.2020
+        function xyzToLinRec2020(x, y, z) {
+            return [
+                 1.7166511880 * x - 0.3556707838 * y - 0.2533662814 * z,
+                -0.6666843518 * x + 1.6164812366 * y + 0.0157685458 * z,
+                 0.0176398574 * x - 0.0427706133 * y + 0.9421031212 * z
+            ];
+        }
+
+        function inGamut(rgb) {
+            return rgb[0] >= -0.001 && rgb[0] <= 1.001 &&
+                   rgb[1] >= -0.001 && rgb[1] <= 1.001 &&
+                   rgb[2] >= -0.001 && rgb[2] <= 1.001;
+        }
+
+        // Binary search: max chroma at given L, H within a gamut
+        function maxChroma(l, h, xyzToLinRgb) {
+            let lo = 0, hi = 0.5;
+            for (let i = 0; i < 50; i++) {
+                const mid = (lo + hi) / 2;
+                const xyz = oklchToXyz(l, mid, h);
+                if (inGamut(xyzToLinRgb(...xyz))) lo = mid; else hi = mid;
+            }
+            return lo;
+        }
+
+        // Max chroma at given L, H within the CIE 1931 spectral locus (non-negative XYZ)
+        function maxChromaSpectral(l, h) {
+            let lo = 0, hi = 0.5;
+            for (let i = 0; i < 50; i++) {
+                const mid = (lo + hi) / 2;
+                const xyz = oklchToXyz(l, mid, h);
+                if (xyz[0] >= -0.001 && xyz[1] >= -0.001 && xyz[2] >= -0.001) lo = mid; else hi = mid;
+            }
+            return lo;
+        }
+
+        // Linear sRGB → XYZ D65 (inverse of xyzToLinSrgb)
+        function linSrgbToXyz(r, g, b) {
+            return [
+                0.4123907993 * r + 0.3575843394 * g + 0.1804807884 * b,
+                0.2126390059 * r + 0.7151686788 * g + 0.0721923154 * b,
+                0.0193308187 * r + 0.1191947798 * g + 0.9505321522 * b
+            ];
+        }
+
+        // sRGB hex → OKLCH
+        function hexToOklch(hex) {
+            hex = hex.replace(/^#/, '');
+            if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+            if (hex.length !== 6) return null;
+            const r8 = parseInt(hex.slice(0,2), 16);
+            const g8 = parseInt(hex.slice(2,4), 16);
+            const b8 = parseInt(hex.slice(4,6), 16);
+            if (isNaN(r8) || isNaN(g8) || isNaN(b8)) return null;
+            // sRGB gamma decode
+            const decode = v => {
+                v /= 255;
+                return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            };
+            const xyz = linSrgbToXyz(decode(r8), decode(g8), decode(b8));
+            const oklab = xyzToOklab(...xyz);
+            return oklabToOklch(...oklab);
+        }
+
+        // OKLCH → sRGB hex (gamut-clipped)
+        function oklchToHex(l, c, h) {
+            const xyz = oklchToXyz(l, c, h);
+            const lin = xyzToLinSrgb(...xyz);
+            const gamma = v => {
+                v = Math.max(0, v);
+                return v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+            };
+            const to8 = v => Math.round(clamp(gamma(v), 0, 1) * 255);
+            return '#' + [to8(lin[0]), to8(lin[1]), to8(lin[2])]
+                .map(v => v.toString(16).padStart(2, '0').toUpperCase()).join('');
+        }
+
+        function oklchStr(l, c, h) {
+            return `oklch(${l.toFixed(3)} ${c.toFixed(3)} ${h.toFixed(1)})`;
+        }
+
+        // PQ OETF: nits [0, 10000] → PQ signal [0, 1]
+        function nitsToPQ(nits) {
+            const Y = Math.max(0, nits) / 10000;
+            const m1 = 0.1593017578125, m2 = 78.84375;
+            const c1 = 0.8359375, c2 = 18.8515625, c3 = 18.6875;
+            const Ym1 = Math.pow(Y, m1);
+            return Math.pow((c1 + c2 * Ym1) / (1 + c3 * Ym1), m2);
+        }
+
+        // Detect HDR canvas support (rec2100-pq)
+        const ctxMap = {};
+        const supportsHDRCanvas = (() => {
+            try {
+                const c = document.createElement('canvas');
+                c.width = 1; c.height = 1;
+                const ctx = c.getContext('2d', { colorSpace: 'rec2100-pq' });
+                return ctx && ctx.getContextAttributes().colorSpace === 'rec2100-pq';
+            } catch (e) { return false; }
+        })();
+
+        // Shared canvas tile renderer
+        function renderCanvasTile(canvasId, linRec2020, nits) {
+            const canvas = document.getElementById(canvasId);
+            const parent = canvas.parentElement;
+            const w = parent.clientWidth, h = parent.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+
+            if (!ctxMap[canvasId]) {
+                ctxMap[canvasId] = canvas.getContext('2d', { colorSpace: 'rec2100-pq' });
+            }
+            const ctx = ctxMap[canvasId];
+
+            const pqR = nitsToPQ(Math.max(0, linRec2020[0]) * nits);
+            const pqG = nitsToPQ(Math.max(0, linRec2020[1]) * nits);
+            const pqB = nitsToPQ(Math.max(0, linRec2020[2]) * nits);
+
+            const imgData = ctx.createImageData(w * dpr, h * dpr);
+            const d = imgData.data;
+            const r8 = Math.round(clamp(pqR, 0, 1) * 255);
+            const g8 = Math.round(clamp(pqG, 0, 1) * 255);
+            const b8 = Math.round(clamp(pqB, 0, 1) * 255);
+            for (let i = 0; i < d.length; i += 4) {
+                d[i] = r8; d[i+1] = g8; d[i+2] = b8; d[i+3] = 255;
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        // ========== State ==========
+        let computed = null;
+        let currentIlluminant = 'd50';
+        let currentLabValues = null;
+
+        function computeFromLab(L, a, b, illuminant) {
+            let d65;
+            if (illuminant === 'd65') {
+                d65 = labToXyzD65(L, a, b);
+            } else {
+                const d50 = labToXyzD50(L, a, b);
+                d65 = d50ToD65(...d50);
+            }
+            const oklab = xyzToOklab(...d65);
+            const oklch = oklabToOklch(...oklab);
+            const maxSrgb = maxChroma(oklch.l, oklch.h, xyzToLinSrgb);
+            const maxP3 = maxChroma(oklch.l, oklch.h, xyzToLinP3);
+            const maxRec = maxChroma(oklch.l, oklch.h, xyzToLinRec2020);
+            return { oklch, maxSrgb, maxP3, maxRec, d65, oklab };
+        }
+
+        function clearPresetHighlight() {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        function loadPreset(L, a, b, illuminant, btn) {
+            currentIlluminant = illuminant || 'd50';
+            currentLabValues = { L, a, b };
+            computed = computeFromLab(L, a, b, currentIlluminant);
+            // Set sliders to the computed OKLCH values
+            document.getElementById('adj-lightness').value = computed.oklch.l.toFixed(3);
+            document.getElementById('adj-chroma').value = computed.oklch.c.toFixed(3);
+            document.getElementById('adj-hue').value = computed.oklch.h.toFixed(1);
+            document.getElementById('adj-hdr').value = 200;
+            clearPresetHighlight();
+            if (btn) btn.classList.add('active');
+            updateLiveInfo();
+            updateSwatches();
+        }
+
+        function loadFromHex() {
+            const input = document.getElementById('hex-input');
+            const error = document.getElementById('hex-error');
+            let hex = input.value.trim();
+            if (!hex.startsWith('#')) hex = '#' + hex;
+            const oklch = hexToOklch(hex);
+            if (!oklch) {
+                error.textContent = 'Invalid hex';
+                return;
+            }
+            error.textContent = '';
+            currentLabValues = null;
+            currentIlluminant = 'srgb';
+            computed = {
+                oklch,
+                maxSrgb: maxChroma(oklch.l, oklch.h, xyzToLinSrgb),
+                maxP3: maxChroma(oklch.l, oklch.h, xyzToLinP3),
+                maxRec: maxChroma(oklch.l, oklch.h, xyzToLinRec2020),
+            };
+            document.getElementById('adj-lightness').value = oklch.l.toFixed(3);
+            document.getElementById('adj-chroma').value = oklch.c.toFixed(3);
+            document.getElementById('adj-hue').value = oklch.h.toFixed(1);
+            document.getElementById('adj-hdr').value = 100;
+            clearPresetHighlight();
+            updateLiveInfo();
+            updateSwatches();
+        }
+
+        function updateLiveInfo() {
+            if (!computed) return;
+            const adjL = parseFloat(document.getElementById('adj-lightness').value);
+            const adjC = parseFloat(document.getElementById('adj-chroma').value);
+            const adjH = parseFloat(document.getElementById('adj-hue').value);
+            const hdrBrightness = parseInt(document.getElementById('adj-hdr').value) / 100;
+            const adjMaxSrgb = maxChroma(adjL, adjH, xyzToLinSrgb);
+            const adjMaxP3 = maxChroma(adjL, adjH, xyzToLinP3);
+            const adjMaxRec = maxChroma(adjL, adjH, xyzToLinRec2020);
+            const adjMaxSpec = maxChromaSpectral(adjL, adjH);
+            const hexStr = oklchToHex(adjL, Math.min(adjC, adjMaxSrgb), adjH);
+            const lab = currentLabValues;
+            let sourceStr;
+            if (lab) {
+                const illum = currentIlluminant === 'd65' ? 'D65 (UV)' : 'D50 (no UV)';
+                sourceStr = `CIE Lab ${illum}: L*=${lab.L} a*=${lab.a} b*=${lab.b}`;
+            } else {
+                sourceStr = `sRGB hex: ${hexStr}`;
+            }
+            const el = document.getElementById('live-info');
+            el.innerHTML =
+                `<div class="info-row"><span class="info-label">Source</span><span class="info-value">${sourceStr}</span></div>` +
+                `<div class="info-row"><span class="info-label">OKLCH</span><span class="info-value">L=${adjL.toFixed(3)}  C=${adjC.toFixed(3)}  H=${adjH.toFixed(1)}&deg;</span></div>` +
+                `<div class="info-row"><span class="info-label">Hex (sRGB)</span><span class="info-value">${hexStr}${adjC > adjMaxSrgb ? ' (clipped)' : ''}</span></div>` +
+                `<div class="info-row"><span class="info-label">Gamut bounds</span><span class="info-value"><span class="srgb-c">sRGB C=${adjMaxSrgb.toFixed(3)}</span> &nbsp;<span class="p3-c">P3 C=${adjMaxP3.toFixed(3)}</span> &nbsp;<span class="rec-c">Rec.2020 C=${adjMaxRec.toFixed(3)}</span> &nbsp;<span style="color:#aaa;">CIE C=${adjMaxSpec.toFixed(3)}</span></span></div>` +
+                (hdrBrightness > 1.0 ? `<div class="info-row"><span class="info-label">HDR</span><span class="info-value">${hdrBrightness.toFixed(1)}x (${Math.round(203 * hdrBrightness)} nits) on Rec. 2100 tile</span></div>` : '');
+        }
+
+        // ========== Rendering ==========
+        function updateSwatches() {
+            if (!computed) return;
+            const adjL = parseFloat(document.getElementById('adj-lightness').value);
+            const desiredChroma = parseFloat(document.getElementById('adj-chroma').value);
+            const adjH = parseFloat(document.getElementById('adj-hue').value);
+            const hdrBrightness = parseInt(document.getElementById('adj-hdr').value) / 100;
+
+            document.getElementById('adj-lightness-val').value = adjL.toFixed(3);
+            document.getElementById('adj-chroma-val').value = desiredChroma.toFixed(3);
+            document.getElementById('adj-hue-val').value = adjH.toFixed(1);
+            document.getElementById('adj-hdr-val').value = hdrBrightness.toFixed(1) + 'x';
+            updateLiveInfo();
+
+            // Recompute gamut boundaries at adjusted L and H
+            const adjMaxSrgb = maxChroma(adjL, adjH, xyzToLinSrgb);
+            const adjMaxP3 = maxChroma(adjL, adjH, xyzToLinP3);
+            const adjMaxRec = maxChroma(adjL, adjH, xyzToLinRec2020);
+            const adjMaxSpectral = maxChromaSpectral(adjL, adjH);
+            // Slider max = spectral locus, but ensure it always covers all gamut markers
+            // (tolerance mismatch between XYZ >= 0 and RGB [0,1] checks can cause
+            //  Rec.2020 boundary to marginally exceed the computed spectral limit)
+            const chromaSlider = document.getElementById('adj-chroma');
+            chromaSlider.max = Math.max(adjMaxSpectral, adjMaxRec).toFixed(4);
+
+            // Clamp chroma per gamut
+            const cSrgb = Math.min(desiredChroma, adjMaxSrgb);
+            const cP3 = Math.min(desiredChroma, adjMaxP3);
+            const cRec = Math.min(desiredChroma, adjMaxRec);
+
+            // Update chroma markers at current L/H
+            updateChromaMarkers(adjMaxSrgb, adjMaxP3, adjMaxRec);
+
+            // Gamut tags
+            const tagSrgb = document.getElementById('tag-srgb');
+            const tagP3 = document.getElementById('tag-p3');
+            const tagRec = document.getElementById('tag-rec2020');
+            if (desiredChroma > adjMaxSrgb) {
+                tagSrgb.textContent = `sRGB (clamped)`;
+                tagSrgb.className = 'gamut-tag clamped';
+            } else {
+                tagSrgb.textContent = 'sRGB';
+                tagSrgb.className = 'gamut-tag in-gamut';
+            }
+            if (desiredChroma > adjMaxP3) {
+                tagP3.textContent = `P3 (clamped)`;
+                tagP3.className = 'gamut-tag clamped';
+            } else {
+                tagP3.textContent = 'P3';
+                tagP3.className = 'gamut-tag in-gamut';
+            }
+            tagRec.textContent = 'Rec.2100';
+            tagRec.className = desiredChroma > adjMaxRec ? 'gamut-tag clamped' : 'gamut-tag in-gamut';
+
+            const srgbCss = oklchStr(adjL, cSrgb, adjH);
+            const p3Css = oklchStr(adjL, cP3, adjH);
+            const recCss = oklchStr(adjL, cRec, adjH);
+            const hexStr = oklchToHex(adjL, cSrgb, adjH);
+
+            const SDR_WHITE = 203;
+
+            if (supportsHDRCanvas) {
+                // sRGB tile: SDR brightness
+                const xyzS = oklchToXyz(adjL, cSrgb, adjH);
+                const linS = xyzToLinRec2020(...xyzS);
+                renderCanvasTile('canvas-srgb', linS, SDR_WHITE);
+
+                // P3 tile: SDR brightness
+                const xyzP = oklchToXyz(adjL, cP3, adjH);
+                const linP = xyzToLinRec2020(...xyzP);
+                renderCanvasTile('canvas-p3', linP, SDR_WHITE);
+
+                // Rec.2100 tile: HDR brightness
+                const xyzR = oklchToXyz(adjL, cRec, adjH);
+                const linR = xyzToLinRec2020(...xyzR);
+                renderCanvasTile('canvas-rec', linR, SDR_WHITE * hdrBrightness);
+            } else {
+                // Fallback: CSS oklch()
+                const setColor = (id, fallback, oklch) => {
+                    const el = document.getElementById(id);
+                    el.style.backgroundColor = fallback;
+                    el.style.backgroundColor = oklch;
+                };
+                setColor('swatch-srgb', hexStr, srgbCss);
+                setColor('swatch-p3', hexStr, p3Css);
+                setColor('swatch-rec2020', hexStr, recCss);
+            }
+
+            // Value labels
+            document.getElementById('value-srgb').textContent = `${hexStr}  ${srgbCss}`;
+            document.getElementById('value-p3').textContent = p3Css;
+            document.getElementById('value-rec2020').textContent = recCss;
+
+            // Notes
+            document.getElementById('note-srgb').textContent = desiredChroma > adjMaxSrgb
+                ? `Clamped to sRGB boundary (C=${adjMaxSrgb.toFixed(3)})`
+                : `Within sRGB gamut`;
+            document.getElementById('note-p3').textContent = desiredChroma > adjMaxP3
+                ? `Clamped to P3 boundary (C=${adjMaxP3.toFixed(3)})`
+                : `Within P3 gamut`;
+            let recNote = desiredChroma > adjMaxRec
+                ? `Clamped to Rec. 2020 boundary (C=${adjMaxRec.toFixed(3)})`
+                : `Within Rec. 2020 gamut`;
+            if (hdrBrightness > 1.0 && supportsHDRCanvas) {
+                recNote += ` — HDR ${hdrBrightness.toFixed(1)}x (${Math.round(SDR_WHITE * hdrBrightness)} nits)`;
+            } else if (hdrBrightness > 1.0 && !supportsHDRCanvas) {
+                recNote += ` — HDR canvas not supported`;
+            }
+            document.getElementById('note-rec2020').textContent = recNote;
+
+            window._currentColors = { srgb: `${hexStr}\n${srgbCss}`, p3: p3Css, rec2020: recCss };
+        }
+
+        // Hue-dependent estimated fraction of the P3→Rec.2020 gap that each
+        // display technology can reach. Based on measured primary coordinates:
+        //   QD-OLED (Samsung S95C / Alienware AW3423DW): native primaries extend
+        //   strongly in green (~530nm QD) and red (~632nm QD), but blue is the
+        //   bare OLED emitter ≈ P3 blue.  ~77-80% Rec.2020 xy area (rtings.com).
+        //   MacBook MiniLED: Apple clamps SDR to P3, but HDR content via
+        //   rec2100-pq can access the native KSF-phosphor red and wide-gamut
+        //   green slightly beyond P3.  ~73-77% Rec.2020 xy area.
+        // OKLCH hue ≈ 0°=pink-red, 30°=red, 60°=orange, 90°=yellow,
+        //   140°=green, 180°=cyan, 265°=blue, 330°=magenta.
+        // These are rough estimates — actual panels vary by unit and calibration.
+
+        const QDOLED_HUE_TABLE = [
+            // [hue, fraction of P3→Rec.2020 gap]
+            [0,   0.22], [20,  0.38], [40,  0.44], [60,  0.48],
+            [80,  0.48], [100, 0.46], [120, 0.45], [140, 0.45],
+            [160, 0.30], [180, 0.20], [200, 0.14], [220, 0.08],
+            [240, 0.06], [260, 0.08], [280, 0.10], [300, 0.12],
+            [320, 0.16], [340, 0.20], [360, 0.22],
+        ];
+
+        const MINILED_HUE_TABLE = [
+            [0,   0.10], [20,  0.14], [40,  0.14], [60,  0.12],
+            [80,  0.11], [100, 0.10], [120, 0.09], [140, 0.08],
+            [160, 0.06], [180, 0.05], [200, 0.04], [220, 0.03],
+            [240, 0.03], [260, 0.03], [280, 0.04], [300, 0.06],
+            [320, 0.08], [340, 0.09], [360, 0.10],
+        ];
+
+        function lerpHueTable(table, hue) {
+            hue = ((hue % 360) + 360) % 360;
+            for (let i = 0; i < table.length - 1; i++) {
+                if (hue >= table[i][0] && hue <= table[i + 1][0]) {
+                    const t = (hue - table[i][0]) / (table[i + 1][0] - table[i][0]);
+                    return table[i][1] + t * (table[i + 1][1] - table[i][1]);
+                }
+            }
+            return table[0][1];
+        }
+
+        function updateChromaMarkers(mSrgb, mP3, mRec) {
+            const slider = document.getElementById('adj-chroma');
+            const container = document.getElementById('chroma-markers');
+            const max = parseFloat(slider.max);
+            const pct = v => (v / max) * 100;
+            const adjH = parseFloat(document.getElementById('adj-hue').value);
+
+            // Hue-dependent display estimates
+            const gap = mRec - mP3;
+            const mMiniLED = mP3 + gap * lerpHueTable(MINILED_HUE_TABLE, adjH);
+            const mQDOLED = mP3 + gap * lerpHueTable(QDOLED_HUE_TABLE, adjH);
+
+            const markers = [
+                { c: mSrgb, cls: 'srgb', label: 'sRGB' },
+                { c: mP3, cls: 'p3', label: 'P3' },
+                { c: mMiniLED, cls: 'display-est', label: 'MiniLED' },
+                { c: mQDOLED, cls: 'display-est', label: 'QD-OLED' },
+                { c: mRec, cls: 'rec2020', label: 'Rec.2020' },
+            ];
+
+            container.innerHTML = markers.map(m => {
+                const p = pct(m.c);
+                if (p < 0 || p > 100) return '';
+                return `<div class="chroma-marker ${m.cls}" style="left:${p.toFixed(1)}%">` +
+                       `<div class="chroma-marker-label">${m.label}</div></div>`;
+            }).join('');
+        }
+
+        // ========== Onboarding ==========
+        let obStep = 1;
+        const OB_TOTAL = 6;
+
+        function obNext() {
+            if (obStep < OB_TOTAL) { obStep++; obShow(); }
+        }
+        function obPrev() {
+            if (obStep > 1) { obStep--; obShow(); }
+        }
+        function obShow() {
+            document.querySelectorAll('.onboarding-step').forEach(s => s.classList.remove('active'));
+            const el = document.querySelector(`.onboarding-step[data-step="${obStep}"]`);
+            if (el) el.classList.add('active');
+        }
+        function closeOnboarding() {
+            document.getElementById('onboarding').classList.add('hidden');
+        }
+        function showOnboarding() {
+            obStep = 1; obShow();
+            document.getElementById('onboarding').classList.remove('hidden');
+        }
+
+        // ========== UI ==========
+        function copyCssValue(space) {
+            if (!window._currentColors) return;
+            const val = window._currentColors[space];
+            navigator.clipboard.writeText(val).then(() => {
+                const el = document.getElementById('value-' + space);
+                el.classList.add('copied');
+                const orig = el.textContent;
+                el.textContent = 'Copied!';
+                setTimeout(() => { el.classList.remove('copied'); el.textContent = orig; }, 1000);
+            }).catch(() => {});
+        }
+
+        function setBg(mode) {
+            document.body.className = mode === 'light' ? 'light-bg' : mode === 'white' ? 'white-bg' : '';
+            document.querySelectorAll('.bg-toggle .btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function resetSliders() {
+            if (computed) {
+                document.getElementById('adj-lightness').value = computed.oklch.l.toFixed(3);
+                document.getElementById('adj-chroma').value = computed.oklch.c.toFixed(3);
+                document.getElementById('adj-hue').value = computed.oklch.h.toFixed(1);
+            }
+            document.getElementById('adj-hdr').value = 200;
+            updateSwatches();
+        }
+
+        function detectHero() {
+            const rec = window.matchMedia('(color-gamut: rec2020)').matches;
+            const p3 = window.matchMedia('(color-gamut: p3)').matches;
+            const hdr = window.matchMedia('(dynamic-range: high)').matches;
+            const banner = document.getElementById('hero-banner');
+            const icon = document.getElementById('hero-icon');
+            const title = document.getElementById('hero-title');
+            const body = document.getElementById('hero-body');
+
+            if (rec) {
+                banner.className = 'hero-banner supports-yes';
+                icon.textContent = '\u2713';
+                title.textContent = 'Rec. 2020 gamut reported';
+                body.innerHTML = 'Your OS reports Rec. 2020 support. All three swatches should appear distinct, rendered via <code>rec2100-pq</code> HDR canvas.';
+            } else if (p3 && hdr) {
+                banner.className = 'hero-banner supports-likely';
+                icon.textContent = '\u2248';
+                title.textContent = 'P3 + HDR detected — likely Rec. 2020 capable';
+                body.innerHTML = 'The <code>color-gamut</code> media query only reports P3, but your display supports HDR. HDR uses Rec. 2100 which shares Rec. 2020 primaries. All tiles rendered via <code>rec2100-pq</code> HDR canvas. All three should appear distinct.';
+            } else if (p3) {
+                banner.className = 'hero-banner supports-no';
+                icon.textContent = '\u2717';
+                title.textContent = 'Rec. 2020 not reported (P3, no HDR)';
+                body.innerHTML = 'Your OS reports P3 but not Rec. 2020 or HDR. All tiles rendered via <code>rec2100-pq</code> HDR canvas. P3 and Rec. 2020 tiles may appear similar if your panel doesn\'t exceed P3.';
+            } else {
+                banner.className = 'hero-banner supports-no';
+                icon.textContent = '\u2717';
+                title.textContent = 'Rec. 2020 not reported (sRGB only)';
+                body.innerHTML = 'sRGB display reported. On an sRGB panel, all three tiles will look similar once chroma exceeds the sRGB boundary. Try a wide-gamut display.';
+            }
+        }
+
+        function detectCapabilities() {
+            const grid = document.getElementById('cap-grid');
+            const rows = [];
+            const row = (l, v, c) => rows.push(`<div class="cap-label">${l}</div><div class="cap-value">${c ? `<span class="${c}">${v}</span>` : v}</div>`);
+            const yn = b => b ? ['Yes', 'yes'] : ['No', 'no'];
+
+            row('Gamut: sRGB', ...yn(matchMedia('(color-gamut: srgb)').matches));
+            row('Gamut: Display P3', ...yn(matchMedia('(color-gamut: p3)').matches));
+            row('Gamut: Rec. 2020', ...yn(matchMedia('(color-gamut: rec2020)').matches));
+            row('Dynamic range (HDR)', ...yn(matchMedia('(dynamic-range: high)').matches));
+            row('Video HDR', ...yn(matchMedia('(video-dynamic-range: high)').matches));
+
+            let bits = 0;
+            for (let b = 16; b >= 1; b--) { if (matchMedia(`(min-color: ${b})`).matches) { bits = b; break; } }
+            row('Bits per channel', bits > 0 ? `${bits}-bit` : 'Unknown');
+            row('Color depth', `${screen.colorDepth || '?'}-bit`);
+            row('Screen', `${screen.width}\u00d7${screen.height} @ ${devicePixelRatio || '?'}x`);
+
+            const sup = fn => { try { return CSS.supports('color', fn); } catch(e) { return false; } };
+            const fns = [
+                ['oklch(0.5 0.2 30)', 'oklch()'], ['oklab(0.5 0.1 0.1)', 'oklab()'],
+                ['color(display-p3 1 0 0)', 'color(display-p3)'], ['color(rec2020 1 0 0)', 'color(rec2020)'],
+                ['lab(50 40 30)', 'lab()'], ['lch(50 40 30)', 'lch()'],
+            ];
+            const supported = fns.filter(([f]) => sup(f)).map(([,n]) => n);
+            const unsupported = fns.filter(([f]) => !sup(f)).map(([,n]) => n);
+            row('CSS color functions', supported.length ? supported.map(n => `<span class="yes">${n}</span>`).join(' ') : '<span class="no">None</span>');
+            if (unsupported.length) row('Not supported', unsupported.map(n => `<span class="no">${n}</span>`).join(' '));
+            row('Canvas HDR (rec2100-pq)', ...yn(supportsHDRCanvas));
+
+            rows.push('<div class="cap-note">Browser/OS reported values. Hardware may exceed what is advertised.</div>');
+            grid.innerHTML = rows.join('');
+        }
+
+        // ========== Init ==========
+        function init() {
+            // Default preset: D65 805C Original Neon
+            loadPreset(73.03, 69.14, 35.9, 'd65', document.getElementById('preset-d65-805c'));
+
+            detectHero();
+            detectCapabilities();
+
+            // Range slider → update swatches
+            ['adj-lightness', 'adj-chroma', 'adj-hue', 'adj-hdr'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    clearPresetHighlight();
+                    updateSwatches();
+                });
+            });
+
+            // Text input → update corresponding range slider
+            const inputMap = {
+                'adj-lightness-val': { slider: 'adj-lightness', parse: v => parseFloat(v) },
+                'adj-chroma-val': { slider: 'adj-chroma', parse: v => parseFloat(v) },
+                'adj-hue-val': { slider: 'adj-hue', parse: v => parseFloat(v) },
+                'adj-hdr-val': { slider: 'adj-hdr', parse: v => parseFloat(v) * 100 },
+            };
+            Object.entries(inputMap).forEach(([inputId, { slider, parse }]) => {
+                const el = document.getElementById(inputId);
+                el.addEventListener('change', () => {
+                    const val = parse(el.value);
+                    if (!isNaN(val)) {
+                        document.getElementById(slider).value = val;
+                        clearPresetHighlight();
+                        updateSwatches();
+                    }
+                });
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.target.blur(); }
+                });
+            });
+
+            // Hex input: Enter to load, live swatch preview
+            const hexInput = document.getElementById('hex-input');
+            hexInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') loadFromHex();
+            });
+            hexInput.addEventListener('input', () => {
+                let hex = hexInput.value.trim();
+                if (!hex.startsWith('#')) hex = '#' + hex;
+                const swatch = document.getElementById('hex-swatch');
+                const oklch = hexToOklch(hex);
+                if (oklch) {
+                    swatch.style.background = hex;
+                    document.getElementById('hex-error').textContent = '';
+                } else {
+                    swatch.style.background = 'transparent';
+                }
+            });
+
+            window.addEventListener('resize', () => { if (supportsHDRCanvas) updateSwatches(); });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

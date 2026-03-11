@@ -304,11 +304,16 @@
             <button class="ob-skip" onclick="closeOnboarding()">Skip intro</button>
 
             <div class="onboarding-step active" data-step="1">
-                <div class="ob-step-indicator">1 / 6</div>
+                <div class="ob-step-indicator">1 / 7</div>
                 <h2>Enable HDR Canvas</h2>
                 <p>This tool uses the <code>rec2100-pq</code> HDR canvas API to render colors beyond sRGB. It requires a Chrome flag to be enabled.</p>
                 <div class="ob-highlight">
-                    <p style="margin:0;">In Chrome, open <code>chrome://flags/#enable-experimental-web-platform-features</code>, set it to <strong style="color:#fff;">Enabled</strong>, then restart the browser.</p>
+                    <p style="margin:0 0 0.5rem;">Copy this into Chrome's address bar and press Enter:</p>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <code id="chrome-flag-url" style="flex:1; user-select:all; cursor:text;">chrome://flags/#enable-experimental-web-platform-features</code>
+                        <button class="btn" onclick="navigator.clipboard.writeText('chrome://flags/#enable-experimental-web-platform-features').then(()=>{this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy',1000)})" style="flex-shrink:0; padding:0.25rem 0.6rem; font-size:0.75rem;">Copy</button>
+                    </div>
+                    <p style="margin:0.5rem 0 0;">Set it to <strong style="color:#fff;">Enabled</strong>, then restart the browser.</p>
                 </div>
                 <p style="font-size:0.82rem; color:#666;">Without this flag, tiles fall back to CSS <code>oklch()</code> which cannot exceed SDR brightness.</p>
                 <div class="ob-nav">
@@ -318,7 +323,7 @@
             </div>
 
             <div class="onboarding-step" data-step="2">
-                <div class="ob-step-indicator">2 / 6</div>
+                <div class="ob-step-indicator">2 / 7</div>
                 <h2>Display Profile</h2>
                 <p>For accurate HDR color rendering, macOS should use a colorimetric reference profile instead of its default perceptual gamut mapping.</p>
                 <div class="ob-highlight">
@@ -332,7 +337,7 @@
             </div>
 
             <div class="onboarding-step" data-step="3">
-                <div class="ob-step-indicator">3 / 6</div>
+                <div class="ob-step-indicator">3 / 7</div>
                 <h2>Presets</h2>
                 <p>The presets load CIE Lab measurements of Pantone colors into the OKLCH sliders. There are two illuminant groups:</p>
                 <div class="ob-body">
@@ -347,7 +352,7 @@
             </div>
 
             <div class="onboarding-step" data-step="4">
-                <div class="ob-step-indicator">4 / 6</div>
+                <div class="ob-step-indicator">4 / 7</div>
                 <h2>Gamut Boundary Markers</h2>
                 <p>The chroma slider shows where each color space's gamut ends at the current lightness and hue. The slider scales to the CIE 1931 spectral locus &mdash; the absolute physical limit of visible color.</p>
                 <div style="margin:0.75rem 0;">
@@ -363,7 +368,7 @@
             </div>
 
             <div class="onboarding-step" data-step="5">
-                <div class="ob-step-indicator">5 / 6</div>
+                <div class="ob-step-indicator">5 / 7</div>
                 <h2>HDR Brightness</h2>
                 <p>The HDR brightness slider is <em>not</em> part of the color itself &mdash; it controls how bright the Rec.2100 tile is rendered, independently of its hue and saturation.</p>
                 <p>Most displays capable of P3 or wider gamut also support <strong style="color:#ccc;">per-area brightness control</strong> &mdash; this is what HDR actually is. Rather than a single fixed backlight level, HDR displays (MiniLED local dimming, OLED per-pixel) can push individual regions far beyond the standard SDR white point of 203 nits.</p>
@@ -378,7 +383,7 @@
             </div>
 
             <div class="onboarding-step" data-step="6">
-                <div class="ob-step-indicator">6 / 6</div>
+                <div class="ob-step-indicator">6 / 7</div>
                 <h2>Display Technology Estimates</h2>
                 <p>Dotted markers show where real displays fall between P3 and Rec.2020, estimated from published primary measurements (rtings.com, HDTVTest). These shift with hue:</p>
                 <div style="margin:0.75rem 0;">
@@ -388,6 +393,21 @@
                 <div class="ob-highlight" style="border-color:rgba(153,119,68,0.4); background:rgba(153,119,68,0.08);">
                     <p style="margin:0; font-size:0.82rem;"><strong style="color:#997744;">Why do I see changes past my display's marker?</strong> macOS does not hard-clip out-of-gamut HDR colors. Its EDR pipeline applies perceptual gamut mapping, so you see the Rec.2100 tile keep changing past the dotted line &mdash; but those differences are <em style="color:#aaa;">inaccurate</em>. Colors within the marker are rendered accurately; colors beyond are the OS's best-effort approximation. Using the HDR Video reference profile (step 2) reduces this effect.</p>
                 </div>
+                <div class="ob-nav">
+                    <button class="btn" onclick="obPrev()">Back</button>
+                    <button class="btn" onclick="obNext()">Next</button>
+                </div>
+            </div>
+
+            <div class="onboarding-step" data-step="7">
+                <div class="ob-step-indicator">7 / 7</div>
+                <h2>Verify Your Setup</h2>
+                <p>Before using this tool, confirm that your browser and display are actually rendering HDR content correctly.</p>
+                <div class="ob-highlight">
+                    <p style="margin:0;">Open <a href="https://www.testufo.com/hdr" target="_blank" rel="noopener" style="color:#88ccff;">testufo.com/hdr</a> and look for the <strong style="color:#fff;">WCG HDR</strong> test pattern. It should be visibly blinking &mdash; alternating between bright HDR colors and standard SDR.</p>
+                </div>
+                <p>If you cannot see the WCG HDR test blinking, your setup is not properly configured. Go back to steps 1 and 2 and make sure both the Chrome flag is enabled and the correct display profile is selected.</p>
+                <p style="font-size:0.82rem; color:#666;">The testufo HDR test uses the same <code>rec2100-pq</code> canvas API as this tool. If it works there, it will work here.</p>
                 <div class="ob-nav">
                     <button class="btn" onclick="obPrev()">Back</button>
                     <button class="btn active" onclick="closeOnboarding()">Get started</button>
@@ -1034,7 +1054,7 @@
 
         // ========== Onboarding ==========
         let obStep = 1;
-        const OB_TOTAL = 6;
+        const OB_TOTAL = 7;
 
         function obNext() {
             if (obStep < OB_TOTAL) { obStep++; obShow(); }

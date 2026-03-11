@@ -78,7 +78,7 @@
 
         /* Swatches */
         .swatches {
-            display: grid; grid-template-columns: repeat(4, 1fr);
+            display: grid; grid-template-columns: repeat(3, 1fr);
             gap: 1.25rem; margin-bottom: 2rem;
         }
         .swatch { border-radius: 12px; overflow: hidden; background: #1e1e1e; }
@@ -502,7 +502,7 @@
                     <div class="swatch-note" id="note-rec2020"></div>
                 </div>
             </div>
-            <div class="swatch" style="border:1px dashed #444;">
+            <div class="swatch" id="swatch-unclamped-wrap" style="display:none; border:1px dashed #444;">
                 <div class="swatch-color" id="swatch-unclamped" onclick="copyCssValue('unclamped')">
                     <canvas class="swatch-canvas" id="canvas-unclamped"></canvas>
                     <span class="gamut-tag" id="tag-unclamped" style="color:#cc88ff;">Unclamped</span>
@@ -511,7 +511,6 @@
                     <div class="swatch-label">Unclamped</div>
                     <div class="swatch-value" id="value-unclamped" onclick="copyCssValue('unclamped')" title="Click to copy"></div>
                     <div class="swatch-note" id="note-unclamped"></div>
-                    <div style="font-size:0.68rem; color:#555; margin-top:0.3rem; line-height:1.45;">Any difference between this and Rec.2100 is the hardware failing to reproduce the color &mdash; the OS passes out-of-gamut values through and lets the display do whatever it can, which is inaccurate by definition.</div>
                 </div>
             </div>
         </div>
@@ -564,6 +563,16 @@
         </div>
 
         <div class="live-info" id="live-info"></div>
+
+        <div style="background:#1e1e1e; border-radius:12px; padding:1rem 1.25rem; margin-bottom:2rem;">
+            <label style="font-size:0.88rem; font-weight:600; color:#fff; display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                <input type="checkbox" id="show-unclamped" style="accent-color:#FF4B36; cursor:pointer;">
+                Show unclamped tile
+            </label>
+            <div style="font-size:0.78rem; color:#666; margin-top:0.4rem; line-height:1.5;">
+                Adds a 4th tile that sends raw chroma through the HDR pipeline with no gamut clamping — even beyond Rec.2020. Useful for comparing how different browsers, operating systems, and display hardware fail in different ways when asked to render a color they physically cannot reproduce. Any visible difference from the Rec.2100 tile is inaccurate by definition.
+            </div>
+        </div>
 
         <details class="capabilities">
             <summary>Full display capabilities</summary>
@@ -976,9 +985,11 @@
                 renderCanvasTile('canvas-rec', linR, SDR_WHITE * hdrBrightness);
 
                 // Unclamped tile: raw chroma, HDR brightness, no gamut clamping
-                const xyzU = oklchToXyz(adjL, desiredChroma, adjH);
-                const linU = xyzToLinRec2020(...xyzU);
-                renderCanvasTile('canvas-unclamped', linU, SDR_WHITE * hdrBrightness);
+                if (document.getElementById('show-unclamped').checked) {
+                    const xyzU = oklchToXyz(adjL, desiredChroma, adjH);
+                    const linU = xyzToLinRec2020(...xyzU);
+                    renderCanvasTile('canvas-unclamped', linU, SDR_WHITE * hdrBrightness);
+                }
             } else {
                 // Fallback: CSS oklch()
                 const setColor = (id, fallback, oklch) => {
@@ -1131,9 +1142,11 @@
             renderCanvasTile('canvas-rec', linR, 203 * currentHdr);
 
             // Unclamped tile also pulses
-            const xyzU = oklchToXyz(adjL, desiredChroma, adjH);
-            const linU = xyzToLinRec2020(...xyzU);
-            renderCanvasTile('canvas-unclamped', linU, 203 * currentHdr);
+            if (document.getElementById('show-unclamped').checked) {
+                const xyzU = oklchToXyz(adjL, desiredChroma, adjH);
+                const linU = xyzToLinRec2020(...xyzU);
+                renderCanvasTile('canvas-unclamped', linU, 203 * currentHdr);
+            }
 
             // Update the displayed value
             document.getElementById('adj-hdr-val').value = currentHdr.toFixed(1) + 'x';
@@ -1337,6 +1350,20 @@
 
             // Start pulse if checked on load
             if (document.getElementById('hdr-pulse').checked) startPulse();
+
+            // Unclamped tile toggle
+            document.getElementById('show-unclamped').addEventListener('change', (e) => {
+                const wrap = document.getElementById('swatch-unclamped-wrap');
+                const grid = document.querySelector('.swatches');
+                if (e.target.checked) {
+                    wrap.style.display = '';
+                    grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+                    updateSwatches();
+                } else {
+                    wrap.style.display = 'none';
+                    grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                }
+            });
 
             window.addEventListener('resize', () => { if (supportsHDRCanvas) updateSwatches(); });
         }

@@ -556,8 +556,8 @@
                 </div>
                 <div class="control-row">
                     <label for="adj-hdr">HDR brightness</label>
-                    <input type="range" id="adj-hdr" min="100" max="500" value="200" step="5">
-                    <input type="text" class="val-input" id="adj-hdr-val" value="2.0x">
+                    <input type="range" id="adj-hdr" min="100" max="500" value="160" step="5">
+                    <input type="text" class="val-input" id="adj-hdr-val" value="1.6x">
                 </div>
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem;">
                     <label style="font-size:0.78rem; color:#777; display:flex; align-items:center; gap:0.35rem; cursor:pointer;">
@@ -859,7 +859,7 @@
             document.getElementById('adj-lightness').value = computed.oklch.l.toFixed(3);
             document.getElementById('adj-chroma').value = computed.oklch.c.toFixed(3);
             document.getElementById('adj-hue').value = computed.oklch.h.toFixed(1);
-            document.getElementById('adj-hdr').value = 200;
+            document.getElementById('adj-hdr').value = 160;
             clearPresetHighlight();
             if (btn) btn.classList.add('active');
             updateLiveInfo();
@@ -1328,7 +1328,7 @@
                 document.getElementById('adj-chroma').value = computed.oklch.c.toFixed(3);
                 document.getElementById('adj-hue').value = computed.oklch.h.toFixed(1);
             }
-            document.getElementById('adj-hdr').value = 200;
+            document.getElementById('adj-hdr').value = 160;
             updateSwatches();
         }
 

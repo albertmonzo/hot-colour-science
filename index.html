@@ -1364,6 +1364,16 @@
                 icon.textContent = '\u2717';
                 title.textContent = 'Rec. 2020 not reported (P3, no HDR)';
                 body.innerHTML = 'Your OS reports P3 but not Rec. 2020 or HDR. All tiles rendered via <code>rec2100-pq</code> HDR canvas. P3 and Rec. 2020 tiles may appear similar if your panel doesn\'t exceed P3.';
+            } else if (supportsHDRCanvas && hdr) {
+                banner.className = 'hero-banner supports-likely';
+                icon.textContent = '\u2248';
+                title.textContent = 'HDR working — gamut under-reported';
+                body.innerHTML = 'Your OS reports HDR support and the <code>rec2100-pq</code> canvas is working, but <code>color-gamut</code> only reports sRGB. HDR requires at minimum P3 primaries, so your display almost certainly supports wide gamut — the OS just isn\'t reporting it. This is common on Android. All tiles are rendered accurately.';
+            } else if (supportsHDRCanvas) {
+                banner.className = 'hero-banner supports-likely';
+                icon.textContent = '\u2248';
+                title.textContent = 'HDR canvas working — display gamut unknown';
+                body.innerHTML = 'Your OS only reports sRGB via CSS media queries, but the <code>rec2100-pq</code> HDR canvas API is working and all tiles are rendered accurately. Your display may support a wider gamut than reported.';
             } else {
                 banner.className = 'hero-banner supports-no';
                 icon.textContent = '\u2717';

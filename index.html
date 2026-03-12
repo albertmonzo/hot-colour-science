@@ -206,6 +206,15 @@
             top: auto; bottom: -15px;
         }
 
+        /* Gamut range bars for L and H sliders */
+        .gamut-range-bar {
+            position: absolute; height: 3px; pointer-events: none;
+            border-radius: 1.5px;
+        }
+        .gamut-range-bar.rec2020 { background: #55aaff; opacity: 0.6; }
+        .gamut-range-bar.p3 { background: #ff8844; opacity: 0.7; }
+        .gamut-range-bar.srgb { background: #FF4B36; opacity: 0.8; }
+
         .btn-row { display: flex; gap: 0.5rem; margin-top: 0.85rem; }
         .btn {
             padding: 0.4rem 0.9rem; background: #2a2a2a; color: #aaa;
@@ -521,9 +530,12 @@
                 OKLCH is a perceptually uniform color space. <strong style="color:#777;">L</strong> = perceived brightness (0 black, 1 white). <strong style="color:#777;">C</strong> = saturation intensity (0 grey, higher = more vivid). <strong style="color:#777;">H</strong> = hue angle in degrees (0&deg; pink, 30&deg; red, 90&deg; yellow, 140&deg; green, 265&deg; blue).
             </div>
             <div class="control-group">
-                <div class="control-row">
+                <div class="control-row" style="margin-bottom:1rem">
                     <label for="adj-lightness">Lightness (L)</label>
-                    <input type="range" id="adj-lightness" min="0.05" max="0.95" value="0.717" step="0.001">
+                    <div class="chroma-slider-wrap">
+                        <input type="range" id="adj-lightness" min="0.05" max="0.95" value="0.717" step="0.001">
+                        <div class="chroma-markers" id="lightness-markers"></div>
+                    </div>
                     <input type="text" class="val-input" id="adj-lightness-val" value="0.717">
                 </div>
                 <div class="control-row" style="margin-bottom:1rem">
@@ -534,9 +546,12 @@
                     </div>
                     <input type="text" class="val-input" id="adj-chroma-val" value="0.169">
                 </div>
-                <div class="control-row">
+                <div class="control-row" style="margin-bottom:1rem">
                     <label for="adj-hue">Hue (H)</label>
-                    <input type="range" id="adj-hue" min="0" max="360" value="20.1" step="0.1">
+                    <div class="chroma-slider-wrap">
+                        <input type="range" id="adj-hue" min="0" max="360" value="20.1" step="0.1">
+                        <div class="chroma-markers" id="hue-markers"></div>
+                    </div>
                     <input type="text" class="val-input" id="adj-hue-val" value="20.1">
                 </div>
                 <div class="control-row">
@@ -937,8 +952,10 @@
             const cP3 = Math.min(desiredChroma, adjMaxP3);
             const cRec = Math.min(desiredChroma, adjMaxRec);
 
-            // Update chroma markers at current L/H
+            // Update gamut markers on all three sliders
             updateChromaMarkers(adjMaxSrgb, adjMaxP3, adjMaxRec);
+            updateLightnessMarkers(desiredChroma, adjH);
+            updateHueMarkers(adjL, desiredChroma);
 
             // Gamut tags
             const tagSrgb = document.getElementById('tag-srgb');
@@ -1113,6 +1130,100 @@
             }).join('');
         }
 
+        // ========== L / H Gamut Range Bars ==========
+        // Shows colored range bars below L and H sliders indicating
+        // where the current chroma is achievable within each gamut.
+        function findValidRanges(samples, valueFn) {
+            const ranges = [];
+            let rangeStart = null;
+            let prevPos = valueFn(samples[0]) >= 0;
+            if (prevPos) rangeStart = samples[0];
+
+            for (let i = 1; i < samples.length; i++) {
+                const pos = valueFn(samples[i]) >= 0;
+                if (pos && !prevPos) {
+                    let lo = samples[i - 1], hi = samples[i];
+                    for (let j = 0; j < 20; j++) {
+                        const mid = (lo + hi) / 2;
+                        if (valueFn(mid) >= 0) hi = mid; else lo = mid;
+                    }
+                    rangeStart = hi;
+                } else if (!pos && prevPos && rangeStart !== null) {
+                    let lo = samples[i - 1], hi = samples[i];
+                    for (let j = 0; j < 20; j++) {
+                        const mid = (lo + hi) / 2;
+                        if (valueFn(mid) >= 0) lo = mid; else hi = mid;
+                    }
+                    ranges.push([rangeStart, lo]);
+                    rangeStart = null;
+                }
+                prevPos = pos;
+            }
+            if (rangeStart !== null) ranges.push([rangeStart, samples[samples.length - 1]]);
+            return ranges;
+        }
+
+        function updateLightnessMarkers(adjC, adjH) {
+            const container = document.getElementById('lightness-markers');
+            const slider = document.getElementById('adj-lightness');
+            const sMin = parseFloat(slider.min), sMax = parseFloat(slider.max);
+            const range = sMax - sMin;
+            const pct = v => ((v - sMin) / range) * 100;
+
+            if (adjC <= 0.001) { container.innerHTML = ''; return; }
+
+            const steps = 40;
+            const samples = [];
+            for (let i = 0; i <= steps; i++) samples.push(sMin + (i / steps) * range);
+
+            const gamuts = [
+                { m: xyzToLinRec2020, cls: 'rec2020', top: 3 },
+                { m: xyzToLinP3, cls: 'p3', top: 9 },
+                { m: xyzToLinSrgb, cls: 'srgb', top: 15 },
+            ];
+
+            let html = '';
+            for (const g of gamuts) {
+                const valid = findValidRanges(samples, l => maxChroma(l, adjH, g.m) - adjC);
+                for (const [start, end] of valid) {
+                    const left = pct(start);
+                    const width = pct(end) - left;
+                    if (width < 0.5) continue;
+                    html += `<div class="gamut-range-bar ${g.cls}" style="left:${left.toFixed(1)}%; width:${width.toFixed(1)}%; top:calc(100% + ${g.top}px)"></div>`;
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        function updateHueMarkers(adjL, adjC) {
+            const container = document.getElementById('hue-markers');
+            const pct = v => (v / 360) * 100;
+
+            if (adjC <= 0.001) { container.innerHTML = ''; return; }
+
+            const steps = 72;
+            const samples = [];
+            for (let i = 0; i < steps; i++) samples.push((i / steps) * 360);
+
+            const gamuts = [
+                { m: xyzToLinRec2020, cls: 'rec2020', top: 3 },
+                { m: xyzToLinP3, cls: 'p3', top: 9 },
+                { m: xyzToLinSrgb, cls: 'srgb', top: 15 },
+            ];
+
+            let html = '';
+            for (const g of gamuts) {
+                const valid = findValidRanges(samples, h => maxChroma(adjL, h, g.m) - adjC);
+                for (const [start, end] of valid) {
+                    const left = pct(start);
+                    const width = pct(end) - left;
+                    if (width < 0.5) continue;
+                    html += `<div class="gamut-range-bar ${g.cls}" style="left:${left.toFixed(1)}%; width:${width.toFixed(1)}%; top:calc(100% + ${g.top}px)"></div>`;
+                }
+            }
+            container.innerHTML = html;
+        }
+
         // ========== HDR Pulse ==========
         let pulseRafId = null;
 
@@ -1230,7 +1341,15 @@
             const title = document.getElementById('hero-title');
             const body = document.getElementById('hero-body');
 
-            if (rec) {
+            const noCanvasWarning = '<br><br><strong style="color:#ff6644;">HDR canvas API not available.</strong> Enable <code>chrome://flags/#enable-experimental-web-platform-features</code> and restart Chrome. Without it, tiles fall back to CSS <code>oklch()</code> — no HDR brightness and limited gamut accuracy.';
+
+            if (!supportsHDRCanvas) {
+                banner.className = 'hero-banner supports-no';
+                icon.textContent = '\u26A0';
+                title.textContent = 'HDR canvas not available';
+                body.innerHTML = 'Your browser does not support the <code>rec2100-pq</code> canvas color space. Tiles fall back to CSS <code>oklch()</code> — no HDR brightness and limited gamut accuracy.' +
+                    '<br><br>In Chrome, you can enable this by pasting <code>chrome://flags/#enable-experimental-web-platform-features</code> into the address bar, setting it to <strong>Enabled</strong>, and restarting.';
+            } else if (rec) {
                 banner.className = 'hero-banner supports-yes';
                 icon.textContent = '\u2713';
                 title.textContent = 'Rec. 2020 gamut reported';

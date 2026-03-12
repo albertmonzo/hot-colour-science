@@ -572,8 +572,17 @@
                     <a href="#" onclick="showOnboarding(); return false;" style="color:#666; margin-left:0.3rem;">Setup &amp; guide</a>
                 </div>
             </div>
-            <div class="btn-row">
-                <button class="btn" onclick="resetSliders()">Reset</button>
+        </div>
+
+        <div class="controls" id="cie-section" style="text-align:center;">
+            <canvas id="cie-diagram" width="800" height="800" style="max-width:100%; background:#111; border-radius:8px;"></canvas>
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem 1.2rem; justify-content:center; margin-top:0.75rem; font-size:0.7rem; color:#999; line-height:1.4;">
+                <span style="display:inline-flex; align-items:center; gap:4px;"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#FF4B36" stroke-width="1.5"/></svg> sRGB full gamut</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#ff8844" stroke-width="1.5"/></svg> P3 full gamut</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#55aaff" stroke-width="1.5"/></svg> Rec.2020 full gamut</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#FF4B36" stroke-width="2" stroke-dasharray="4,3"/></svg> sRGB at current L</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#ff8844" stroke-width="2" stroke-dasharray="4,3"/></svg> P3 at current L</span>
+                <span style="display:inline-flex; align-items:center; gap:4px;"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#55aaff" stroke-width="2" stroke-dasharray="4,3"/></svg> Rec.2020 at current L</span>
             </div>
         </div>
 
@@ -923,6 +932,16 @@
         }
 
         // ========== Rendering ==========
+        let activeSlider = null; // which slider is currently being held
+
+        function gamutMapColor(l, c, h, matrix) {
+            // Always clamp chroma — this moves dots toward white point on the
+            // CIE diagram and keeps them inside their gamut triangles.
+            const mc = maxChroma(l, h, matrix);
+            if (mc >= c) return { l, c, h };
+            return { l, c: mc, h };
+        }
+
         function updateSwatches() {
             if (!computed) return;
             const adjL = parseFloat(document.getElementById('adj-lightness').value);
@@ -941,16 +960,16 @@
             const adjMaxP3 = maxChroma(adjL, adjH, xyzToLinP3);
             const adjMaxRec = maxChroma(adjL, adjH, xyzToLinRec2020);
             const adjMaxSpectral = maxChromaSpectral(adjL, adjH);
-            // Slider max = spectral locus, but ensure it always covers all gamut markers
-            // (tolerance mismatch between XYZ >= 0 and RGB [0,1] checks can cause
-            //  Rec.2020 boundary to marginally exceed the computed spectral limit)
+            // Slider max = spectral locus, but never shrink below current chroma
+            // so that moving L/H doesn't silently clamp the user's chroma setting
             const chromaSlider = document.getElementById('adj-chroma');
-            chromaSlider.max = Math.max(adjMaxSpectral, adjMaxRec).toFixed(4);
+            chromaSlider.max = Math.max(adjMaxSpectral, adjMaxRec, desiredChroma).toFixed(4);
 
-            // Clamp chroma per gamut
-            const cSrgb = Math.min(desiredChroma, adjMaxSrgb);
-            const cP3 = Math.min(desiredChroma, adjMaxP3);
-            const cRec = Math.min(desiredChroma, adjMaxRec);
+            // Gamut-map each tile: clamp L or H (depending on which slider moved)
+            // instead of always clamping chroma
+            const gSrgb = gamutMapColor(adjL, desiredChroma, adjH, xyzToLinSrgb);
+            const gP3 = gamutMapColor(adjL, desiredChroma, adjH, xyzToLinP3);
+            const gRec = gamutMapColor(adjL, desiredChroma, adjH, xyzToLinRec2020);
 
             // Update gamut markers on all three sliders
             updateChromaMarkers(adjMaxSrgb, adjMaxP3, adjMaxRec);
@@ -961,43 +980,36 @@
             const tagSrgb = document.getElementById('tag-srgb');
             const tagP3 = document.getElementById('tag-p3');
             const tagRec = document.getElementById('tag-rec2020');
-            if (desiredChroma > adjMaxSrgb) {
-                tagSrgb.textContent = `sRGB (clamped)`;
-                tagSrgb.className = 'gamut-tag clamped';
-            } else {
-                tagSrgb.textContent = 'sRGB';
-                tagSrgb.className = 'gamut-tag in-gamut';
-            }
-            if (desiredChroma > adjMaxP3) {
-                tagP3.textContent = `P3 (clamped)`;
-                tagP3.className = 'gamut-tag clamped';
-            } else {
-                tagP3.textContent = 'P3';
-                tagP3.className = 'gamut-tag in-gamut';
-            }
+            const srgbClamped = gSrgb.l !== adjL || gSrgb.c !== desiredChroma || gSrgb.h !== adjH;
+            const p3Clamped = gP3.l !== adjL || gP3.c !== desiredChroma || gP3.h !== adjH;
+            const recClamped = gRec.l !== adjL || gRec.c !== desiredChroma || gRec.h !== adjH;
+            tagSrgb.textContent = srgbClamped ? 'sRGB (clamped)' : 'sRGB';
+            tagSrgb.className = srgbClamped ? 'gamut-tag clamped' : 'gamut-tag in-gamut';
+            tagP3.textContent = p3Clamped ? 'P3 (clamped)' : 'P3';
+            tagP3.className = p3Clamped ? 'gamut-tag clamped' : 'gamut-tag in-gamut';
             tagRec.textContent = 'Rec.2100';
-            tagRec.className = desiredChroma > adjMaxRec ? 'gamut-tag clamped' : 'gamut-tag in-gamut';
+            tagRec.className = recClamped ? 'gamut-tag clamped' : 'gamut-tag in-gamut';
 
-            const srgbCss = oklchStr(adjL, cSrgb, adjH);
-            const p3Css = oklchStr(adjL, cP3, adjH);
-            const recCss = oklchStr(adjL, cRec, adjH);
-            const hexStr = oklchToHex(adjL, cSrgb, adjH);
+            const srgbCss = oklchStr(gSrgb.l, gSrgb.c, gSrgb.h);
+            const p3Css = oklchStr(gP3.l, gP3.c, gP3.h);
+            const recCss = oklchStr(gRec.l, gRec.c, gRec.h);
+            const hexStr = oklchToHex(gSrgb.l, gSrgb.c, gSrgb.h);
 
             const SDR_WHITE = 203;
 
             if (supportsHDRCanvas) {
                 // sRGB tile: SDR brightness
-                const xyzS = oklchToXyz(adjL, cSrgb, adjH);
+                const xyzS = oklchToXyz(gSrgb.l, gSrgb.c, gSrgb.h);
                 const linS = xyzToLinRec2020(...xyzS);
                 renderCanvasTile('canvas-srgb', linS, SDR_WHITE);
 
                 // P3 tile: SDR brightness
-                const xyzP = oklchToXyz(adjL, cP3, adjH);
+                const xyzP = oklchToXyz(gP3.l, gP3.c, gP3.h);
                 const linP = xyzToLinRec2020(...xyzP);
                 renderCanvasTile('canvas-p3', linP, SDR_WHITE);
 
                 // Rec.2100 tile: HDR brightness
-                const xyzR = oklchToXyz(adjL, cRec, adjH);
+                const xyzR = oklchToXyz(gRec.l, gRec.c, gRec.h);
                 const linR = xyzToLinRec2020(...xyzR);
                 renderCanvasTile('canvas-rec', linR, SDR_WHITE * hdrBrightness);
 
@@ -1026,15 +1038,12 @@
             document.getElementById('value-rec2020').textContent = recCss;
 
             // Notes
-            document.getElementById('note-srgb').textContent = desiredChroma > adjMaxSrgb
-                ? `Clamped to sRGB boundary (C=${adjMaxSrgb.toFixed(3)})`
-                : `Within sRGB gamut`;
-            document.getElementById('note-p3').textContent = desiredChroma > adjMaxP3
-                ? `Clamped to P3 boundary (C=${adjMaxP3.toFixed(3)})`
-                : `Within P3 gamut`;
-            let recNote = desiredChroma > adjMaxRec
-                ? `Clamped to Rec. 2020 boundary (C=${adjMaxRec.toFixed(3)})`
-                : `Within Rec. 2020 gamut`;
+            document.getElementById('note-srgb').textContent = gSrgb.c < desiredChroma
+                ? `Clamped to sRGB boundary (C=${gSrgb.c.toFixed(3)})` : `Within sRGB gamut`;
+            document.getElementById('note-p3').textContent = gP3.c < desiredChroma
+                ? `Clamped to P3 boundary (C=${gP3.c.toFixed(3)})` : `Within P3 gamut`;
+            let recNote = gRec.c < desiredChroma
+                ? `Clamped to Rec. 2020 boundary (C=${gRec.c.toFixed(3)})` : `Within Rec. 2020 gamut`;
             if (hdrBrightness > 1.0 && supportsHDRCanvas) {
                 recNote += ` — HDR ${hdrBrightness.toFixed(1)}x (${Math.round(SDR_WHITE * hdrBrightness)} nits)`;
             } else if (hdrBrightness > 1.0 && !supportsHDRCanvas) {
@@ -1060,6 +1069,9 @@
                 `Raw C=${desiredChroma.toFixed(3)} — OS/display decides what to show`;
 
             window._currentColors = { srgb: `${hexStr}\n${srgbCss}`, p3: p3Css, rec2020: recCss, unclamped: unclampedCss };
+
+            // Update CIE 1931 diagram
+            updateDiagram(gSrgb, gP3, gRec, adjL, desiredChroma, adjH);
         }
 
         // Hue-dependent estimated fraction of the P3→Rec.2020 gap that each
@@ -1322,14 +1334,336 @@
             event.target.classList.add('active');
         }
 
-        function resetSliders() {
-            if (computed) {
-                document.getElementById('adj-lightness').value = computed.oklch.l.toFixed(3);
-                document.getElementById('adj-chroma').value = computed.oklch.c.toFixed(3);
-                document.getElementById('adj-hue').value = computed.oklch.h.toFixed(1);
+        // ========== CIE 1931 Chromaticity Diagram ==========
+        // Spectral locus xy coordinates (CIE 1931 2° observer, 5nm intervals)
+        const SPECTRAL_LOCUS = [
+            [0.1741,0.0050],[0.1740,0.0050],[0.1738,0.0049],[0.1736,0.0049],
+            [0.1733,0.0048],[0.1730,0.0048],[0.1726,0.0048],[0.1721,0.0048],
+            [0.1714,0.0051],[0.1703,0.0058],[0.1689,0.0069],[0.1669,0.0086],
+            [0.1644,0.0109],[0.1611,0.0138],[0.1566,0.0177],[0.1510,0.0227],
+            [0.1440,0.0297],[0.1355,0.0399],[0.1241,0.0578],[0.1096,0.0868],
+            [0.0913,0.1327],[0.0687,0.2007],[0.0454,0.2950],[0.0235,0.4127],
+            [0.0082,0.5384],[0.0039,0.6548],[0.0139,0.7502],[0.0389,0.8120],
+            [0.0743,0.8338],[0.1142,0.8262],[0.1547,0.8059],[0.1929,0.7816],
+            [0.2296,0.7543],[0.2658,0.7243],[0.3016,0.6923],[0.3373,0.6589],
+            [0.3731,0.6245],[0.4087,0.5896],[0.4441,0.5547],[0.4788,0.5202],
+            [0.5125,0.4866],[0.5448,0.4544],[0.5752,0.4242],[0.6029,0.3965],
+            [0.6270,0.3725],[0.6482,0.3514],[0.6658,0.3340],[0.6801,0.3197],
+            [0.6915,0.3083],[0.7006,0.2993],[0.7079,0.2920],[0.7140,0.2859],
+            [0.7190,0.2809],[0.7230,0.2770],[0.7260,0.2740],[0.7283,0.2717],
+            [0.7300,0.2700],[0.7311,0.2689],[0.7320,0.2680],[0.7327,0.2673],
+            [0.7334,0.2666],[0.7340,0.2660],[0.7344,0.2656],[0.7346,0.2654],
+            [0.7347,0.2653],
+        ];
+
+        const GAMUT_TRIANGLES = {
+            srgb:    { r:[0.64,0.33],  g:[0.30,0.60],  b:[0.15,0.06],  color:'#FF4B36', label:'sRGB' },
+            p3:      { r:[0.680,0.320],g:[0.265,0.690],b:[0.150,0.060],color:'#ff8844', label:'P3' },
+            rec2020: { r:[0.708,0.292],g:[0.170,0.797],b:[0.131,0.046],color:'#55aaff', label:'Rec.2020' },
+        };
+        const D65_WHITE = [0.3127, 0.3290];
+
+        const CIE_PAD = 35;
+        const CIE_X = [0, 0.9], CIE_Y = [0, 0.9];
+
+        function cieToCanvas(x, y, w, h) {
+            const uw = w - 2 * CIE_PAD, uh = h - 2 * CIE_PAD;
+            return [
+                CIE_PAD + (x - CIE_X[0]) / (CIE_X[1] - CIE_X[0]) * uw,
+                CIE_PAD + (CIE_Y[1] - y) / (CIE_Y[1] - CIE_Y[0]) * uh
+            ];
+        }
+        function canvasToCie(cx, cy, w, h) {
+            const uw = w - 2 * CIE_PAD, uh = h - 2 * CIE_PAD;
+            return [
+                (cx - CIE_PAD) / uw * (CIE_X[1] - CIE_X[0]) + CIE_X[0],
+                CIE_Y[1] - (cy - CIE_PAD) / uh * (CIE_Y[1] - CIE_Y[0])
+            ];
+        }
+
+        function pointInPoly(px, py, poly) {
+            let inside = false;
+            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                const xi = poly[i][0], yi = poly[i][1];
+                const xj = poly[j][0], yj = poly[j][1];
+                if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi))
+                    inside = !inside;
             }
-            document.getElementById('adj-hdr').value = 160;
-            updateSwatches();
+            return inside;
+        }
+
+        let horseshoeCache = null;
+
+        function renderHorseshoe() {
+            const canvas = document.getElementById('cie-diagram');
+            const w = canvas.width, h = canvas.height;
+            const imgData = new ImageData(w, h);
+            const data = imgData.data;
+            // sRGB matrix (XYZ D65 → linear sRGB)
+            const M = [
+                [3.2404541621, -1.5371385940, -0.4985314096],
+                [-0.9692660305, 1.8760108454, 0.0415560175],
+                [0.0556434310, -0.2039769606, 1.0572251882]
+            ];
+            const gamma = v => v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1/2.4) - 0.055;
+
+            for (let py = 0; py < h; py++) {
+                for (let px = 0; px < w; px++) {
+                    const [cx, cy] = canvasToCie(px, py, w, h);
+                    if (cy <= 0.001 || !pointInPoly(cx, cy, SPECTRAL_LOCUS)) continue;
+                    // xy → XYZ (Y=1)
+                    const X = cx / cy, Y = 1, Z = (1 - cx - cy) / cy;
+                    let r = M[0][0]*X + M[0][1]*Y + M[0][2]*Z;
+                    let g = M[1][0]*X + M[1][1]*Y + M[1][2]*Z;
+                    let b = M[2][0]*X + M[2][1]*Y + M[2][2]*Z;
+                    // Normalize to max saturation
+                    const mx = Math.max(r, g, b);
+                    if (mx > 0) { r /= mx; g /= mx; b /= mx; }
+                    r = Math.max(0, r); g = Math.max(0, g); b = Math.max(0, b);
+                    // Desaturate slightly for colors far outside sRGB (nicer look)
+                    const sat = 0.7;
+                    r = r * sat + (1 - sat) * 0.3;
+                    g = g * sat + (1 - sat) * 0.3;
+                    b = b * sat + (1 - sat) * 0.3;
+                    const idx = (py * w + px) * 4;
+                    data[idx]   = Math.round(gamma(r) * 255);
+                    data[idx+1] = Math.round(gamma(g) * 255);
+                    data[idx+2] = Math.round(gamma(b) * 255);
+                    data[idx+3] = 255;
+                }
+            }
+            horseshoeCache = imgData;
+        }
+
+        function xyzToChromaticity(xyz) {
+            const sum = xyz[0] + xyz[1] + xyz[2];
+            if (sum < 0.00001) return D65_WHITE;
+            return [xyz[0] / sum, xyz[1] / sum];
+        }
+
+        function updateDiagram(gSrgb, gP3, gRec, adjL, desiredChroma, adjH) {
+            const canvas = document.getElementById('cie-diagram');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+
+            // Clear and draw cached horseshoe
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, w, h);
+            if (horseshoeCache) ctx.putImageData(horseshoeCache, 0, 0);
+
+            // Mask area outside Rec.2020 when unclamped is not shown
+            const showUnclamped = document.getElementById('show-unclamped').checked;
+            if (!showUnclamped) {
+                const tri = GAMUT_TRIANGLES.rec2020;
+                const triPts = [tri.r, tri.g, tri.b].map(([x,y]) => cieToCanvas(x, y, w, h));
+                // Build path: full canvas minus the Rec.2020 triangle (even-odd fill)
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, w, h);
+                ctx.moveTo(triPts[0][0], triPts[0][1]);
+                ctx.lineTo(triPts[1][0], triPts[1][1]);
+                ctx.lineTo(triPts[2][0], triPts[2][1]);
+                ctx.closePath();
+                // Darken outside triangle
+                ctx.fillStyle = 'rgba(17, 17, 17, 0.75)';
+                ctx.fill('evenodd');
+                // Diagonal hatching over the darkened area
+                ctx.clip('evenodd');
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+                ctx.lineWidth = 1;
+                const spacing = 8;
+                for (let d = -h; d < w + h; d += spacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(d, 0);
+                    ctx.lineTo(d + h, h);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // Spectral locus outline
+            ctx.beginPath();
+            SPECTRAL_LOCUS.forEach(([x, y], i) => {
+                const [cx, cy] = cieToCanvas(x, y, w, h);
+                i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+            });
+            ctx.closePath();
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Axes
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 0.5;
+            ctx.font = '9px SF Mono, Fira Code, monospace';
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.textAlign = 'center';
+            for (let v = 0; v <= 0.8; v += 0.1) {
+                const [cx, cy] = cieToCanvas(v, 0, w, h);
+                ctx.beginPath(); ctx.moveTo(cx, CIE_PAD); ctx.lineTo(cx, h - CIE_PAD); ctx.stroke();
+                ctx.fillText(v.toFixed(1), cx, h - CIE_PAD + 12);
+            }
+            ctx.textAlign = 'right';
+            for (let v = 0; v <= 0.9; v += 0.1) {
+                const [cx, cy] = cieToCanvas(0, v, w, h);
+                ctx.beginPath(); ctx.moveTo(CIE_PAD, cy); ctx.lineTo(w - CIE_PAD, cy); ctx.stroke();
+                ctx.fillText(v.toFixed(1), CIE_PAD - 4, cy + 3);
+            }
+            // Axis labels
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.font = '10px -apple-system, sans-serif';
+            ctx.fillText('x', w / 2, h - 4);
+            ctx.save();
+            ctx.translate(10, h / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('y', 0, 0);
+            ctx.restore();
+
+            // Gamut triangles
+            const drawTri = (tri) => {
+                const pts = [tri.r, tri.g, tri.b].map(([x,y]) => cieToCanvas(x, y, w, h));
+                ctx.beginPath();
+                ctx.moveTo(pts[0][0], pts[0][1]);
+                ctx.lineTo(pts[1][0], pts[1][1]);
+                ctx.lineTo(pts[2][0], pts[2][1]);
+                ctx.closePath();
+                ctx.strokeStyle = tri.color;
+                ctx.lineWidth = 1.5;
+                ctx.globalAlpha = 0.8;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            };
+            drawTri(GAMUT_TRIANGLES.rec2020);
+            drawTri(GAMUT_TRIANGLES.p3);
+            drawTri(GAMUT_TRIANGLES.srgb);
+
+            // Constant-lightness gamut slices — shows achievable chromaticities at current L
+            // Clipped to their gamut triangle so numerical drift at extreme L can't leak outside
+            const drawGamutSlice = (matrix, color, tri) => {
+                const steps = 180;
+                const pts = [];
+                for (let i = 0; i < steps; i++) {
+                    const hDeg = (i / steps) * 360;
+                    const mc = maxChroma(adjL, hDeg, matrix);
+                    if (mc < 0.001) continue;
+                    const xyz = oklchToXyz(adjL, mc, hDeg);
+                    const sum = xyz[0] + xyz[1] + xyz[2];
+                    if (sum < 0.001) continue;
+                    const [cx, cy] = xyzToChromaticity(xyz);
+                    pts.push(cieToCanvas(cx, cy, w, h));
+                }
+                if (pts.length < 3) return;
+                // Clip to gamut triangle
+                const triPts = [tri.r, tri.g, tri.b].map(([x,y]) => cieToCanvas(x, y, w, h));
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(triPts[0][0], triPts[0][1]);
+                ctx.lineTo(triPts[1][0], triPts[1][1]);
+                ctx.lineTo(triPts[2][0], triPts[2][1]);
+                ctx.closePath();
+                ctx.clip();
+                // Draw the slice
+                ctx.beginPath();
+                pts.forEach(([px, py], i) => i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py));
+                ctx.closePath();
+                ctx.globalAlpha = 0.12;
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.globalAlpha = 0.9;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.globalAlpha = 1;
+                ctx.restore();
+            };
+            drawGamutSlice(xyzToLinRec2020, '#55aaff', GAMUT_TRIANGLES.rec2020);
+            drawGamutSlice(xyzToLinP3, '#ff8844', GAMUT_TRIANGLES.p3);
+            drawGamutSlice(xyzToLinSrgb, '#FF4B36', GAMUT_TRIANGLES.srgb);
+
+            // D65 white point
+            const [wx, wy] = cieToCanvas(D65_WHITE[0], D65_WHITE[1], w, h);
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(wx-4, wy); ctx.lineTo(wx+4, wy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(wx, wy-4); ctx.lineTo(wx, wy+4); ctx.stroke();
+
+            // Tile dots
+            const drawDot = (xyz, color, label, offsetY) => {
+                const [cx, cy] = xyzToChromaticity(xyz);
+                const [dx, dy] = cieToCanvas(cx, cy, w, h);
+                // Check bounds
+                if (dx < CIE_PAD || dx > w - CIE_PAD || dy < CIE_PAD || dy > h - CIE_PAD) return;
+                ctx.beginPath();
+                ctx.arc(dx, dy, 4, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.font = '9px SF Mono, Fira Code, monospace';
+                ctx.fillStyle = color;
+                ctx.textAlign = 'left';
+                ctx.fillText(label, dx + 7, dy + 3 + (offsetY || 0));
+            };
+
+            // Trajectory: path the unbounded dot traces as the active slider sweeps
+            if (activeSlider) {
+                const steps = 120;
+                const pts = [];
+                for (let i = 0; i <= steps; i++) {
+                    const t = i / steps;
+                    let l = adjL, c = desiredChroma, hh = adjH;
+                    if (activeSlider === 'lightness') {
+                        l = 0.05 + t * 0.90;
+                    } else if (activeSlider === 'chroma') {
+                        c = t * parseFloat(document.getElementById('adj-chroma').max);
+                    } else if (activeSlider === 'hue') {
+                        hh = t * 360;
+                    }
+                    const xyz = oklchToXyz(l, c, hh);
+                    const sum = xyz[0] + xyz[1] + xyz[2];
+                    if (sum < 0.0001) continue; // skip black (undefined chromaticity)
+                    const [cx, cy] = xyzToChromaticity(xyz);
+                    pts.push(cieToCanvas(cx, cy, w, h));
+                }
+                if (pts.length > 1) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(CIE_PAD, CIE_PAD, w - 2 * CIE_PAD, h - 2 * CIE_PAD);
+                    ctx.clip();
+                    ctx.beginPath();
+                    pts.forEach(([px, py], i) => i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py));
+                    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([5, 3]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // Start/end markers
+                    [pts[0], pts[pts.length - 1]].forEach(([px, py]) => {
+                        ctx.beginPath();
+                        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                        ctx.fill();
+                    });
+                    ctx.restore();
+                }
+            }
+
+            const xyzSrgb = oklchToXyz(gSrgb.l, gSrgb.c, gSrgb.h);
+            const xyzP3 = oklchToXyz(gP3.l, gP3.c, gP3.h);
+            const xyzRec = oklchToXyz(gRec.l, gRec.c, gRec.h);
+            const xyzRaw = oklchToXyz(adjL, desiredChroma, adjH);
+
+            drawDot(xyzRec, '#55aaff', 'Rec.2100', -8);
+            drawDot(xyzP3, '#ff8844', 'P3', 0);
+            drawDot(xyzSrgb, '#FF4B36', 'sRGB', 8);
+            // Unclamped dot if visible and different from rec
+            if (document.getElementById('show-unclamped').checked) {
+                drawDot(xyzRaw, '#cc88ff', 'Unclamped', 16);
+            }
         }
 
         function detectHero() {
@@ -1418,18 +1752,27 @@
 
         // ========== Init ==========
         function init() {
+            renderHorseshoe();
+
             // Default preset: D65 805C Original Neon
             loadPreset(73.03, 69.14, 35.9, 'd65', document.getElementById('preset-d65-805c'));
-
             detectHero();
             detectCapabilities();
 
-            // Range slider → update swatches
+            // Range slider → update swatches + track active slider for trajectory
+            const sliderNames = { 'adj-lightness': 'lightness', 'adj-chroma': 'chroma', 'adj-hue': 'hue' };
             ['adj-lightness', 'adj-chroma', 'adj-hue', 'adj-hdr'].forEach(id => {
-                document.getElementById(id).addEventListener('input', () => {
+                const el = document.getElementById(id);
+                el.addEventListener('input', () => {
                     clearPresetHighlight();
                     updateSwatches();
                 });
+                if (sliderNames[id]) {
+                    el.addEventListener('pointerdown', () => { activeSlider = sliderNames[id]; });
+                }
+            });
+            window.addEventListener('pointerup', () => {
+                if (activeSlider) { activeSlider = null; updateSwatches(); }
             });
 
             // Text input → update corresponding range slider
